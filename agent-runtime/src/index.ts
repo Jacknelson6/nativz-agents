@@ -6,12 +6,16 @@ import * as path from "node:path";
 
 const router = new RpcRouter();
 const runtime = new AgentRuntime();
-const agentsDir = path.resolve(process.cwd(), "agents");
+let agentsDir = path.resolve(__dirname, "../../agents");
 
 router.register("initialize", async (params) => {
+  // Accept agentsDir override from sidecar
+  if (params.agentsDir) {
+    agentsDir = params.agentsDir as string;
+  }
   const agentId = params.agentId as string | undefined;
   if (!agentId) {
-    return { status: "ready", message: "Runtime initialized. No agent loaded." };
+    return { status: "ready", message: "Runtime initialized.", agentsDir };
   }
   const manifestPath = path.join(agentsDir, agentId, "manifest.json");
   const manifest = await runtime.loadAgent(manifestPath);

@@ -34,6 +34,19 @@ pub fn run() {
             let mut mgr = state.lock().unwrap();
             if let Err(e) = mgr.start(app.handle().clone()) {
                 eprintln!("Failed to start sidecar: {}", e);
+            } else {
+                // Send initialize with agents directory path
+                let agents_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .unwrap()
+                    .join("agents")
+                    .to_string_lossy()
+                    .to_string();
+                if let Err(e) = mgr.send_request("initialize", serde_json::json!({
+                    "agentsDir": agents_dir
+                })) {
+                    eprintln!("Failed to send initialize: {}", e);
+                }
             }
             Ok(())
         })
