@@ -136,6 +136,18 @@ export default function CommandPalette() {
           setOpen(false);
         },
       },
+      {
+        id: 'browse-knowledge-view',
+        label: 'Knowledge Browser',
+        description: 'Browse and manage knowledge base documents',
+        category: 'action',
+        icon: BookOpen,
+        keywords: ['knowledge', 'documents', 'browse', 'files', 'rag'],
+        action: () => {
+          setView('knowledge');
+          setOpen(false);
+        },
+      },
     ];
 
     // Agents

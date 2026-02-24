@@ -1,13 +1,14 @@
 import type { Message } from '../../lib/types';
 import ReactMarkdown from 'react-markdown';
 import ToolStatus from './ToolStatus';
+import ArtifactRenderer from './ArtifactRenderer';
 
 export default function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 group`}>
       <div className={`max-w-[75%] ${isUser ? 'order-1' : ''}`}>
         <div
           className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
@@ -26,6 +27,10 @@ export default function MessageBubble({ message }: { message: Message }) {
             </div>
           )}
         </div>
+        {/* Artifact rendering for assistant messages */}
+        {!isUser && !isSystem && message.content && (
+          <ArtifactRenderer text={message.content} />
+        )}
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="mt-2 space-y-1">
             {message.toolCalls.map((tc, i) => (

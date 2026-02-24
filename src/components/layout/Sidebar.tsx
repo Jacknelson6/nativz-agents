@@ -4,7 +4,7 @@ import { useAppStore } from '../../stores/appStore';
 import { useChatStore } from '../../stores/chatStore';
 import { listConversations, deleteConversation as deleteTauriConv, loadConversation } from '../../lib/tauri';
 import type { ConversationSummary } from '../../lib/types';
-import { Settings, Home, Plus, MessageSquare, Trash2, BarChart3 } from 'lucide-react';
+import { Settings, Home, Plus, MessageSquare, Trash2, BarChart3, BookOpen } from 'lucide-react';
 
 export default function Sidebar() {
   const { agents, selectedAgent, selectAgent } = useAgentStore();
@@ -99,6 +99,14 @@ export default function Sidebar() {
           }`}
         >
           <BarChart3 size={16} /> Analytics
+        </button>
+        <button
+          onClick={() => setView('knowledge')}
+          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+            currentView === 'knowledge' ? 'text-white bg-white/5' : 'text-muted hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <BookOpen size={16} /> Knowledge
         </button>
       </div>
 

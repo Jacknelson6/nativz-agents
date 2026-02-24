@@ -3,6 +3,7 @@ import { useAgentStore } from '../../stores/agentStore';
 import { useChatStore } from '../../stores/chatStore';
 import MessageBubble from './MessageBubble';
 import InputBar from './InputBar';
+import ThinkingIndicator from './ThinkingIndicator';
 import { Loader2 } from 'lucide-react';
 
 export default function ChatView() {
@@ -24,6 +25,10 @@ export default function ChatView() {
     sendMessage(selectedAgent.id, content);
   };
 
+  // Check if the last assistant message is still streaming (empty content)
+  const lastMsg = messages[messages.length - 1];
+  const isLastStreaming = isStreaming && lastMsg?.role === 'assistant' && lastMsg.content === '';
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-6">
@@ -35,10 +40,20 @@ export default function ChatView() {
           </div>
         )}
         <div className="max-w-3xl mx-auto">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
-          {isStreaming && (
+          {messages.map((msg, i) => {
+            // Skip the empty streaming placeholder — show ThinkingIndicator instead
+            if (isStreaming && i === messages.length - 1 && msg.role === 'assistant' && msg.content === '') {
+              return null;
+            }
+            return <MessageBubble key={msg.id} message={msg} />;
+          })}
+          {isLastStreaming && (
+            <ThinkingIndicator
+              steps={[{ id: '1', type: 'thinking', label: 'Processing your request...', status: 'active', timestamp: Date.now() }]}
+              isActive={true}
+            />
+          )}
+          {isStreaming && lastMsg?.role === 'assistant' && lastMsg.content !== '' && (
             <div className="flex items-center gap-2 text-muted text-sm mb-4">
               <Loader2 size={14} className="animate-spin" />
               <span>Streaming...</span>

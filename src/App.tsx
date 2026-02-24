@@ -9,6 +9,7 @@ import ApiKeySetup from './components/onboarding/ApiKeySetup';
 import RoleSelect from './components/onboarding/RoleSelect';
 import Settings from './components/settings/Settings';
 import Dashboard from './components/analytics/Dashboard';
+import KnowledgeBrowser from './components/knowledge/KnowledgeBrowser';
 import type { AppSettings } from './lib/types';
 
 function Onboarding() {
@@ -29,10 +30,27 @@ function Onboarding() {
 
 export default function App() {
   const { currentView, settingsOpen, loadSettings, loaded } = useAppStore();
-  const { loadAgents } = useAgentStore();
+  const { loadAgents, selectedAgent } = useAgentStore();
 
   useEffect(() => {
     loadSettings().then(() => loadAgents());
+  }, []);
+
+  // Global keyboard shortcuts (Cmd+, for settings, Cmd+N for new chat)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        useAppStore.getState().toggleSettings();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        useAgentStore.getState().selectAgent(null);
+        useAppStore.getState().setView('home');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
   if (!loaded) {
@@ -54,6 +72,7 @@ export default function App() {
         {currentView === 'home' && <AgentPicker />}
         {currentView === 'chat' && <ChatView />}
         {currentView === 'analytics' && <Dashboard />}
+        {currentView === 'knowledge' && <KnowledgeBrowser agentId={selectedAgent?.id ?? 'global'} />}
       </Layout>
       {settingsOpen && <Settings />}
     </>
