@@ -2,6 +2,7 @@ import { RpcRouter } from "./rpc/router.js";
 import { RpcServer } from "./rpc/server.js";
 import { AgentRuntime } from "./agent/runtime.js";
 import { listAgents } from "./agent/loader.js";
+import type { EntityType } from "./memory/structured.js";
 import * as path from "node:path";
 
 const router = new RpcRouter();
@@ -91,6 +92,130 @@ router.register("set_api_key", async (params) => {
   }
   runtimes.clear();
   return { status: "ok" };
+});
+
+// ─── New v2 RPC methods ───
+
+router.register("list_conversations", async (params) => {
+  const agentId = params.agentId as string;
+  const limit = (params.limit as number | undefined) ?? 50;
+  const offset = (params.offset as number | undefined) ?? 0;
+  if (!agentId) throw new Error("agentId is required");
+  const rt = await getOrLoadRuntime(agentId);
+  const conversations = rt.getConversationStore().list(agentId, { limit, offset });
+  return {
+    conversations: conversations.map((c) => ({
+      id: c.id,
+      agentId: c.agentId,
+      title: c.title,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      messageCount: c.messages.length,
+    })),
+  };
+});
+
+router.register("load_conversation", async (params) => {
+  const conversationId = params.conversationId as string;
+  if (!conversationId) throw new Error("conversationId is required");
+  // Search across all loaded runtimes
+  for (const rt of runtimes.values()) {
+    const conv = rt.getConversationStore().load(conversationId);
+    if (conv) {
+      return { conversation: conv };
+    }
+  }
+  return { conversation: null };
+});
+
+router.register("delete_conversation", async (params) => {
+  const conversationId = params.conversationId as string;
+  if (!conversationId) throw new Error("conversationId is required");
+  for (const rt of runtimes.values()) {
+    rt.getConversationStore().delete(conversationId);
+  }
+  return { status: "ok" };
+});
+
+router.register("get_memories", async (params) => {
+  const agentId = params.agentId as string;
+  const entityId = params.entityId as string;
+  const entityType = (params.entityType as string) ?? "user";
+  if (!agentId || !entityId) throw new Error("agentId and entityId are required");
+  const rt = await getOrLoadRuntime(agentId);
+  const memories = rt.getStructuredMemory().getMemoriesForEntity(agentId, entityId, entityType as EntityType);
+  return {
+    memories: memories.map((m) => ({
+      id: m.id,
+      entityId: m.entityId,
+      entityType: m.entityType,
+      category: m.category,
+      content: m.content,
+      confidence: m.confidence,
+      createdAt: m.createdAt,
+    })),
+  };
+});
+
+router.register("get_usage_stats", async (params) => {
+  const agentId = params.agentId as string | undefined;
+  if (agentId) {
+    const rt = await getOrLoadRuntime(agentId);
+    return rt.getUsageStats();
+  }
+  // Return stats from first available runtime
+  const first = runtimes.values().next();
+  if (!first.done) {
+    return first.value.getUsageStats();
+  }
+  return { daily: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, monthly: { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, byAgent: [], byModel: [] };
+});
+
+router.register("get_cost_stats", async (params) => {
+  const agentId = params.agentId as string | undefined;
+  if (agentId) {
+    const rt = await getOrLoadRuntime(agentId);
+    return rt.getCostStats();
+  }
+  const first = runtimes.values().next();
+  if (!first.done) {
+    return first.value.getCostStats();
+  }
+  return { todayCost: 0, monthCost: 0, dailyLimit: 50, monthlyLimit: 500, withinBudget: true, totalConversations: 0 };
+});
+
+router.register("set_provider", async (params) => {
+  const agentId = params.agentId as string;
+  const providerId = params.providerId as string;
+  if (!agentId || !providerId) throw new Error("agentId and providerId are required");
+  const rt = await getOrLoadRuntime(agentId);
+  rt.setProvider(providerId);
+  return { status: "ok", provider: providerId };
+});
+
+router.register("list_providers", async (params) => {
+  const agentId = params.agentId as string | undefined;
+  if (agentId) {
+    const rt = await getOrLoadRuntime(agentId);
+    const providers = rt.getProviderRegistry().getAll();
+    return {
+      providers: providers.map((p) => ({
+        name: p.name,
+        displayName: p.displayName,
+        available: true,
+        models: p.listModels().map((m) => ({ id: m.id, name: m.name })),
+      })),
+    };
+  }
+  return { providers: [] };
+});
+
+router.register("get_working_memory", async (params) => {
+  const agentId = params.agentId as string;
+  if (!agentId) throw new Error("agentId is required");
+  const rt = await getOrLoadRuntime(agentId);
+  const wm = rt.getWorkingMemory();
+  return { entries: wm?.list() ?? {} };
 });
 
 router.register("shutdown", async () => {

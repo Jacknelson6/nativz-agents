@@ -36,3 +36,86 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
 }
+
+// --- Provider / Model types ---
+
+export interface ProviderHealth {
+  status: 'healthy' | 'degraded' | 'down';
+  latencyMs?: number;
+  lastChecked: number;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  contextWindow: number;
+  costPerInputToken?: number;
+  costPerOutputToken?: number;
+}
+
+export interface Provider {
+  id: string;
+  name: string;
+  models: ModelInfo[];
+  health: ProviderHealth;
+  isSubscription: boolean;
+  estimatedCostPerMessage?: number;
+}
+
+// --- Conversation summary ---
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  agentId: string;
+  updatedAt: number;
+}
+
+// --- Memory types ---
+
+export type MemoryCategory =
+  | 'preference'
+  | 'decision'
+  | 'fact'
+  | 'relationship'
+  | 'goal'
+  | 'feedback'
+  | 'context';
+
+export type MemoryEntityType = 'client' | 'brand' | 'user';
+
+export interface StructuredMemory {
+  id: string;
+  entity: string;
+  entityType: MemoryEntityType;
+  category: MemoryCategory;
+  content: string;
+  confidence: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// --- Analytics types ---
+
+export interface UsageStats {
+  daily: DailyUsage[];
+  byAgent: Record<string, number>;
+  byModel: Record<string, number>;
+  byProvider: Record<string, number>;
+  totalTokens: number;
+}
+
+export interface DailyUsage {
+  date: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export interface CostStats {
+  dailyCost: Record<string, number>;
+  monthlyCost: number;
+  totalCost: number;
+  subscriptionSavings: number;
+  byProvider: Record<string, number>;
+}

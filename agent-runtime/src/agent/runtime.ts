@@ -1,18 +1,35 @@
 import type { MessageParam, ContentBlock } from "@anthropic-ai/sdk/resources/messages.js";
 import { ClaudeClient, type LlmResponse, type StreamCallbacks } from "../llm/client.js";
-import { selectModel, classifyComplexity, type ModelConfig } from "../llm/router.js";
+import { selectModel, classifyComplexity, SmartRouter, type ModelConfig, type RoutingDecision } from "../llm/router.js";
+import { ProviderRegistry } from "../llm/provider-registry.js";
+import { CostTracker as LlmCostTracker } from "../llm/cost-tracker.js";
 import { SkillRegistry } from "../skills/registry.js";
 import { SkillExecutor } from "../skills/executor.js";
 import { builtinSkills } from "../skills/builtin/index.js";
+import { ToolSelector } from "../skills/selector.js";
 import { KnowledgeSearch } from "../knowledge/search.js";
 import { loadKnowledgeDirectory } from "../knowledge/loader.js";
 import { MemoryStore } from "../memory/store.js";
+import { StructuredMemoryStore } from "../memory/structured.js";
+import { WorkingMemory } from "../memory/working.js";
+import { ConversationStore, type ConversationMessage } from "../memory/conversations.js";
+import { extractFacts } from "../memory/extractor.js";
 import { ConversationSummarizer } from "../memory/summarizer.js";
 import { McpRegistry } from "../mcp/registry.js";
+import { McpServerManager } from "../mcp/manager.js";
 import { BrowserManager } from "../browser/manager.js";
+import { CheckpointManager, type CheckpointState } from "./checkpoint.js";
 import { type AgentManifest, loadManifest } from "./loader.js";
 import { buildContext } from "./context.js";
+import { ContextManager } from "../context/manager.js";
+import { SkillLoader } from "../context/skill-loader.js";
+import { TurnScorer, type ToolCallInfo } from "../eval/scorer.js";
+import { EvalTracker } from "../eval/tracker.js";
+import { UsageTracker } from "../telemetry/usage.js";
+import { CostTracker } from "../telemetry/cost.js";
+import { LatencyTracker } from "../telemetry/latency.js";
 import * as path from "node:path";
+import * as fs from "node:fs";
 
 const MAX_TOOL_LOOPS = 20;
 
@@ -22,27 +39,76 @@ export interface AgentMessage {
   toolCalls?: Array<{ name: string; input: Record<string, unknown>; result: string }>;
 }
 
+export interface AgentRuntimeConfig {
+  apiKey?: string;
+  dataDir?: string;
+}
+
 export class AgentRuntime {
+  // Legacy systems (backward compat)
   private client: ClaudeClient;
   private skillRegistry: SkillRegistry;
   private skillExecutor: SkillExecutor;
-  private knowledgeSearch: KnowledgeSearch;
+  private knowledgeSearch: KnowledgeSearch | null = null;
   private memoryStore: MemoryStore;
   private summarizer: ConversationSummarizer;
   private mcpRegistry: McpRegistry;
+
+  // v2 systems
+  private providerRegistry: ProviderRegistry;
+  private llmCostTracker: LlmCostTracker;
+  private smartRouter: SmartRouter;
+  private structuredMemory: StructuredMemoryStore;
+  private workingMemory: WorkingMemory | null = null;
+  private conversationStore: ConversationStore;
+  private checkpointManager: CheckpointManager;
+  private mcpManager: McpServerManager;
+  private contextManager: ContextManager;
+  private skillLoader: SkillLoader;
+  private toolSelector: ToolSelector;
+  private turnScorer: TurnScorer;
+  private evalTracker: EvalTracker;
+  private usageTracker: UsageTracker;
+  private costTracker: CostTracker;
+  private latencyTracker: LatencyTracker;
+
   private manifest: AgentManifest | null = null;
   private conversationHistory: MessageParam[] = [];
   private conversationSummary = "";
   private agentMessages: AgentMessage[] = [];
+  private conversationId: string | null = null;
+  private turnIndex = 0;
+  private activeProviderId: string | null = null;
+  private dataDir: string;
 
-  constructor(apiKey?: string) {
+  constructor(config?: string | AgentRuntimeConfig) {
+    const apiKey = typeof config === "string" ? config : config?.apiKey;
+    this.dataDir = (typeof config === "object" ? config?.dataDir : undefined) ?? path.join(process.cwd(), "data");
+
+    // Legacy
     this.client = new ClaudeClient(apiKey);
     this.skillRegistry = new SkillRegistry();
     this.skillExecutor = new SkillExecutor(this.skillRegistry);
-    this.knowledgeSearch = new KnowledgeSearch();
-    this.memoryStore = new MemoryStore();
+    this.memoryStore = new MemoryStore(path.join(this.dataDir, "memory.db"));
     this.summarizer = new ConversationSummarizer(this.client);
     this.mcpRegistry = new McpRegistry();
+
+    // v2 systems
+    this.providerRegistry = new ProviderRegistry();
+    this.llmCostTracker = new LlmCostTracker();
+    this.smartRouter = new SmartRouter(this.providerRegistry, this.llmCostTracker);
+    this.structuredMemory = new StructuredMemoryStore(path.join(this.dataDir, "structured_memory.db"));
+    this.conversationStore = new ConversationStore(path.join(this.dataDir, "conversations.db"));
+    this.checkpointManager = new CheckpointManager(path.join(this.dataDir, "checkpoints.db"));
+    this.mcpManager = new McpServerManager();
+    this.contextManager = new ContextManager();
+    this.skillLoader = new SkillLoader();
+    this.toolSelector = new ToolSelector();
+    this.turnScorer = new TurnScorer();
+    this.evalTracker = new EvalTracker(path.join(this.dataDir, "eval.db"));
+    this.usageTracker = new UsageTracker(path.join(this.dataDir, "usage.db"));
+    this.costTracker = new CostTracker();
+    this.latencyTracker = new LatencyTracker(path.join(this.dataDir, "latency.db"));
 
     // Register builtin skills
     for (const skill of builtinSkills) {
@@ -57,15 +123,32 @@ export class AgentRuntime {
   async loadAgent(manifestPath: string): Promise<AgentManifest> {
     this.manifest = await loadManifest(manifestPath);
     const agentDir = path.dirname(manifestPath);
+    const agentId = this.manifest.id;
+
+    // Initialize knowledge search with agent-specific data
+    this.knowledgeSearch = new KnowledgeSearch(this.dataDir, agentId);
 
     // Load knowledge
     for (const knowledgePath of this.manifest.knowledge) {
       const fullPath = path.resolve(agentDir, knowledgePath);
       const chunks = await loadKnowledgeDirectory(fullPath);
-      this.knowledgeSearch.addChunks(chunks);
+      await this.knowledgeSearch.addChunks(chunks);
     }
 
-    // Connect MCP servers
+    // Connect MCP servers via manager (with auto-restart)
+    for (const server of this.manifest.mcpServers) {
+      try {
+        await this.mcpManager.startServer(server.name, {
+          command: server.command,
+          args: server.args,
+          env: server.env,
+        });
+      } catch (err) {
+        console.error(`Failed to start MCP server ${server.name}:`, err);
+      }
+    }
+
+    // Also connect via legacy registry for backward compat
     for (const server of this.manifest.mcpServers) {
       try {
         await this.mcpRegistry.connectServer(server.name, {
@@ -74,7 +157,7 @@ export class AgentRuntime {
           env: server.env,
         });
       } catch (err) {
-        console.error(`Failed to connect MCP server ${server.name}:`, err);
+        // Already logged above
       }
     }
 
@@ -83,7 +166,67 @@ export class AgentRuntime {
       this.skillRegistry.register(skill);
     }
 
+    // Load skill files from agent directory
+    const skillsDir = path.resolve(agentDir, "skills");
+    if (fs.existsSync(skillsDir)) {
+      await this.skillLoader.loadDirectory(skillsDir);
+    }
+    // Also try loading SKILL.md from agent root
+    await this.skillLoader.loadDirectory(agentDir);
+
+    // Apply context budget from manifest if present
+    if (this.manifest.context?.budgetAllocation) {
+      this.contextManager = new ContextManager(this.manifest.context.budgetAllocation);
+    }
+
     return this.manifest;
+  }
+
+  /**
+   * Start or resume a conversation.
+   */
+  startConversation(conversationId?: string): string {
+    if (!this.manifest) throw new Error("No agent loaded");
+
+    if (conversationId) {
+      const existing = this.conversationStore.load(conversationId);
+      if (existing) {
+        this.conversationId = existing.id;
+        this.conversationHistory = existing.messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+        this.turnIndex = existing.messages.length;
+        return existing.id;
+      }
+    }
+
+    const conv = this.conversationStore.create(this.manifest.id);
+    this.conversationId = conv.id;
+    this.conversationHistory = [];
+    this.turnIndex = 0;
+
+    // Initialize working memory for this conversation
+    this.workingMemory = new WorkingMemory(this.manifest.id, conv.id, {
+      dbPath: path.join(this.dataDir, "working_memory.db"),
+      maxTokens: this.manifest.memory?.workingMemorySize ?? 4096,
+    });
+
+    return conv.id;
+  }
+
+  /**
+   * Hot-swap the active LLM provider.
+   */
+  setProvider(providerId: string): void {
+    if (!this.providerRegistry.has(providerId)) {
+      throw new Error(`Provider not found: ${providerId}`);
+    }
+    this.activeProviderId = providerId;
+  }
+
+  getProviderRegistry(): ProviderRegistry {
+    return this.providerRegistry;
   }
 
   async sendMessage(
@@ -92,6 +235,11 @@ export class AgentRuntime {
     onStreamNotify?: (type: string, data: Record<string, unknown>) => void
   ): Promise<string> {
     if (!this.manifest) throw new Error("No agent loaded");
+
+    // Auto-start conversation if none active
+    if (!this.conversationId) {
+      this.startConversation();
+    }
 
     // Summarize if conversation is long
     if (this.summarizer.shouldSummarize(this.conversationHistory)) {
@@ -105,24 +253,37 @@ export class AgentRuntime {
     // Add user message
     this.conversationHistory.push({ role: "user", content: userMessage });
 
-    // Build context
-    const ctx = buildContext({
+    // Get working memory serialization
+    const workingMemoryXml = this.workingMemory?.serialize() ?? "";
+
+    // Inject matched skills
+    const skillContent = this.skillLoader.injectSkills(userMessage);
+
+    // Build context (using legacy buildContext for backward compat)
+    const ctx = await buildContext({
       manifest: this.manifest,
       userMessage,
       conversationHistory: this.conversationHistory,
-      knowledgeSearch: this.knowledgeSearch,
+      knowledgeSearch: this.knowledgeSearch ?? undefined,
       memoryStore: this.memoryStore,
       userId,
       conversationSummary: this.conversationSummary,
+      workingMemoryXml,
+      skillContent,
+      contextManager: this.contextManager,
     });
 
-    // Select model
+    // Select model via smart router or legacy
     const complexity = classifyComplexity(userMessage);
     const modelConfig: ModelConfig = this.manifest.model;
     const model = selectModel(complexity, modelConfig);
 
-    // Get tools
-    const tools = this.skillRegistry.toClaudeTools(this.manifest.skills);
+    // Get tools (with dynamic selection if too many)
+    const allTools = this.skillRegistry.list();
+    const selectedTools = this.toolSelector.selectTools(userMessage, allTools);
+    const tools = this.skillRegistry.toClaudeTools(
+      selectedTools.map((t) => t.name)
+    );
 
     // Agent loop
     let messages = [...ctx.messages];
@@ -131,6 +292,7 @@ export class AgentRuntime {
 
     while (loopCount < MAX_TOOL_LOOPS) {
       loopCount++;
+      const callStartTime = Date.now();
 
       const streamCallbacks: StreamCallbacks | undefined = onStreamNotify
         ? {
@@ -159,6 +321,34 @@ export class AgentRuntime {
             maxTokens: this.manifest.guardrails.maxTokensPerTurn,
           });
 
+      const callEndTime = Date.now();
+      const latencyMs = callEndTime - callStartTime;
+
+      // Record telemetry
+      this.usageTracker.recordUsage({
+        conversationId: this.conversationId ?? "unknown",
+        agentId: this.manifest.id,
+        provider: "anthropic",
+        model,
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+      });
+
+      this.latencyTracker.record({
+        provider: "anthropic",
+        model,
+        timeToFirstTokenMs: latencyMs * 0.3, // estimate
+        totalTimeMs: latencyMs,
+      });
+
+      this.llmCostTracker.recordUsage(
+        this.conversationId ?? "unknown",
+        "anthropic",
+        model,
+        response.usage.inputTokens,
+        response.usage.outputTokens
+      );
+
       // Check for tool use
       const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
       const textBlocks = response.content.filter((b) => b.type === "text");
@@ -176,6 +366,33 @@ export class AgentRuntime {
           content: text,
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         });
+        this.turnIndex++;
+
+        // Persist conversation
+        this.persistConversation();
+
+        // Score this turn
+        const toolCallInfos: ToolCallInfo[] = (toolCalls ?? []).map((tc) => ({
+          name: tc.name,
+          input: tc.input,
+          result: tc.result,
+        }));
+        const score = this.turnScorer.scoreTurn(userMessage, text, toolCallInfos);
+        this.evalTracker.recordTurn(
+          this.conversationId ?? "unknown",
+          this.turnIndex,
+          score,
+          this.manifest.id,
+          model
+        );
+
+        // Extract facts asynchronously (fire-and-forget with fast model)
+        if (this.manifest.memory?.extractFacts !== false) {
+          this.extractFactsAsync(userMessage, text, userId).catch((err) => {
+            console.error("Fact extraction failed:", err);
+          });
+        }
+
         return text;
       }
 
@@ -204,23 +421,135 @@ export class AgentRuntime {
           input: block.input as Record<string, unknown>,
           result,
         });
+
+        // Record tool usage for selector
+        this.toolSelector.recordUsage(block.name);
       }
 
       messages.push({ role: "user", content: toolResults });
+
+      // Checkpoint after tool execution
+      this.saveCheckpoint(loopCount, toolCalls);
     }
 
     const fallback = "I've reached the maximum number of tool calls. Here's what I've done so far.";
     this.conversationHistory.push({ role: "assistant", content: fallback });
+    this.persistConversation();
     return fallback;
   }
+
+  private async extractFactsAsync(userMessage: string, assistantResponse: string, userId: string): Promise<void> {
+    if (!this.manifest) return;
+
+    const recentMessages = [
+      { role: "user", content: userMessage },
+      { role: "assistant", content: assistantResponse },
+    ];
+
+    const llmFn = async (prompt: string): Promise<string> => {
+      const response = await this.client.call({
+        model: this.manifest!.model.fast,
+        system: "You are a fact extraction system.",
+        messages: [{ role: "user", content: prompt }],
+        maxTokens: 2000,
+      });
+      const textBlocks = response.content.filter((b) => b.type === "text");
+      return textBlocks.map((b) => ("text" in b ? b.text : "")).join("");
+    };
+
+    const facts = await extractFacts(recentMessages, llmFn, this.manifest.id);
+    for (const fact of facts) {
+      this.structuredMemory.addMemory(fact);
+    }
+  }
+
+  private persistConversation(): void {
+    if (!this.conversationId) return;
+    const messages: ConversationMessage[] = this.conversationHistory.map((m) => ({
+      role: m.role,
+      content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+    }));
+    this.conversationStore.save(this.conversationId, messages);
+  }
+
+  private saveCheckpoint(loopIteration: number, toolCalls: NonNullable<AgentMessage["toolCalls"]>): void {
+    if (!this.conversationId) return;
+
+    const toolCallResults: Record<string, string> = {};
+    for (const tc of toolCalls) {
+      toolCallResults[tc.name] = tc.result;
+    }
+
+    const wmEntries = this.workingMemory?.list() ?? {};
+
+    const state: CheckpointState = {
+      conversationHistory: this.conversationHistory.map((m) => ({
+        role: m.role,
+        content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      })),
+      toolCallResults,
+      workingMemory: wmEntries,
+      loopIteration,
+    };
+
+    this.checkpointManager.save(this.conversationId, state);
+  }
+
+  // ─── Public accessors ───
 
   getHistory(): AgentMessage[] {
     return this.agentMessages;
   }
 
+  getConversationStore(): ConversationStore {
+    return this.conversationStore;
+  }
+
+  getStructuredMemory(): StructuredMemoryStore {
+    return this.structuredMemory;
+  }
+
+  getWorkingMemory(): WorkingMemory | null {
+    return this.workingMemory;
+  }
+
+  getUsageStats(): {
+    daily: { inputTokens: number; outputTokens: number; totalTokens: number };
+    monthly: { inputTokens: number; outputTokens: number; totalTokens: number };
+    byAgent: Array<{ group: string; inputTokens: number; outputTokens: number; totalTokens: number }>;
+    byModel: Array<{ group: string; inputTokens: number; outputTokens: number; totalTokens: number }>;
+  } {
+    return {
+      daily: this.usageTracker.getDailyUsage(),
+      monthly: this.usageTracker.getMonthlyUsage(),
+      byAgent: this.usageTracker.getUsageByAgent(),
+      byModel: this.usageTracker.getUsageByModel(),
+    };
+  }
+
+  getCostStats(): {
+    todayCost: number;
+    monthCost: number;
+    dailyLimit: number;
+    monthlyLimit: number;
+    withinBudget: boolean;
+    totalConversations: number;
+  } {
+    return this.llmCostTracker.getSummary();
+  }
+
   async shutdown(): Promise<void> {
     await this.mcpRegistry.disconnectAll();
+    await this.mcpManager.shutdownAll();
     await BrowserManager.getInstance().close();
     this.memoryStore.close();
+    this.structuredMemory.close();
+    this.workingMemory?.close();
+    this.conversationStore.close();
+    this.checkpointManager.close();
+    this.knowledgeSearch?.close();
+    this.evalTracker.close();
+    this.usageTracker.close();
+    this.latencyTracker.close();
   }
 }

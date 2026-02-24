@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam, Tool } from "@anthropic-ai/sdk/resources/messages.js";
-import type { MessageStreamEvent } from "@anthropic-ai/sdk/resources/messages.js";
 
 export interface StreamCallOptions {
   model: string;

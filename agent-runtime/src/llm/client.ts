@@ -1,11 +1,24 @@
-import Anthropic from "@anthropic-ai/sdk";
-import type { MessageParam, Tool, ContentBlock } from "@anthropic-ai/sdk/resources/messages.js";
+/**
+ * Backward-compatible facade over the multi-provider system.
+ * Existing code using ClaudeClient continues to work unchanged.
+ */
+import type { MessageParam, ContentBlock } from "@anthropic-ai/sdk/resources/messages.js";
+import { AnthropicProvider } from "./providers/anthropic.js";
+import type { UnifiedLlmRequest, UnifiedMessage, UnifiedToolDefinition } from "./providers/types.js";
 
 export interface LlmCallOptions {
   model: string;
   system: string;
   messages: MessageParam[];
-  tools?: Tool[];
+  tools?: Array<{
+    name: string;
+    description?: string;
+    input_schema: {
+      type: "object";
+      properties?: unknown;
+      required?: string[];
+    };
+  }>;
   maxTokens?: number;
 }
 
@@ -21,72 +34,89 @@ export interface StreamCallbacks {
   onMessageDone?: (fullText: string) => void;
 }
 
+function convertMessages(messages: MessageParam[]): UnifiedMessage[] {
+  return messages.map((m) => ({
+    role: m.role as "user" | "assistant",
+    content: typeof m.content === "string"
+      ? m.content
+      : JSON.stringify(m.content),
+  }));
+}
+
+function convertTools(
+  tools?: LlmCallOptions["tools"]
+): UnifiedToolDefinition[] | undefined {
+  if (!tools?.length) return undefined;
+  return tools.map((t) => {
+    const props = (t.input_schema.properties ?? {}) as Record<string, Record<string, unknown>>;
+    return {
+      name: t.name,
+      description: t.description,
+      inputSchema: {
+        type: "object" as const,
+        properties: Object.fromEntries(
+          Object.entries(props).map(([k, v]) => [k, {
+            type: (v.type as string) ?? "string",
+            description: (v.description as string) ?? undefined,
+          }])
+        ),
+        required: t.input_schema.required,
+      },
+    };
+  });
+}
+
+function toContentBlocks(
+  content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }>
+): ContentBlock[] {
+  // Cast unified blocks back to Anthropic ContentBlock shape
+  // They share the same structure for text and tool_use
+  return content as unknown as ContentBlock[];
+}
+
 export class ClaudeClient {
-  private client: Anthropic;
+  private provider: AnthropicProvider;
 
   constructor(apiKey?: string) {
-    this.client = new Anthropic({ apiKey: apiKey ?? process.env.ANTHROPIC_API_KEY });
+    this.provider = new AnthropicProvider({ apiKey });
   }
 
   async call(options: LlmCallOptions): Promise<LlmResponse> {
-    const response = await this.client.messages.create({
+    const request: UnifiedLlmRequest = {
       model: options.model,
-      max_tokens: options.maxTokens ?? 4096,
       system: options.system,
-      messages: options.messages,
-      tools: options.tools,
-    });
+      messages: convertMessages(options.messages),
+      tools: convertTools(options.tools),
+      maxTokens: options.maxTokens,
+    };
+
+    const response = await this.provider.call(request);
 
     return {
-      content: response.content,
-      stopReason: response.stop_reason,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
+      content: toContentBlocks(response.content),
+      stopReason: response.stopReason,
+      usage: response.usage,
     };
   }
 
-  async streamCall(options: LlmCallOptions, callbacks?: StreamCallbacks): Promise<LlmResponse> {
-    try {
-      const stream = this.client.messages.stream({
-        model: options.model,
-        max_tokens: options.maxTokens ?? 4096,
-        system: options.system,
-        messages: options.messages,
-        tools: options.tools,
-      });
+  async streamCall(
+    options: LlmCallOptions,
+    callbacks?: StreamCallbacks
+  ): Promise<LlmResponse> {
+    const request: UnifiedLlmRequest = {
+      model: options.model,
+      system: options.system,
+      messages: convertMessages(options.messages),
+      tools: convertTools(options.tools),
+      maxTokens: options.maxTokens,
+    };
 
-      stream.on("text", (text) => {
-        callbacks?.onTextDelta?.(text);
-      });
+    const response = await this.provider.streamCall(request, callbacks);
 
-      stream.on("contentBlock", (block) => {
-        if (block.type === "tool_use") {
-          callbacks?.onToolUseStart?.(block.name, block.id);
-        }
-      });
-
-      const finalMessage = await stream.finalMessage();
-
-      const fullText = finalMessage.content
-        .filter((b) => b.type === "text")
-        .map((b) => ("text" in b ? b.text : ""))
-        .join("");
-
-      callbacks?.onMessageDone?.(fullText);
-
-      return {
-        content: finalMessage.content,
-        stopReason: finalMessage.stop_reason,
-        usage: {
-          inputTokens: finalMessage.usage.input_tokens,
-          outputTokens: finalMessage.usage.output_tokens,
-        },
-      };
-    } catch (err) {
-      // Fallback to non-streaming
-      return this.call(options);
-    }
+    return {
+      content: toContentBlocks(response.content),
+      stopReason: response.stopReason,
+      usage: response.usage,
+    };
   }
 }

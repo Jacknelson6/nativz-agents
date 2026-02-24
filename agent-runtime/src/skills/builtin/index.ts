@@ -7,6 +7,10 @@ import { webCrawlSkill } from "./web-crawl.js";
 import { stagehandActSkill } from "./stagehand-act.js";
 import { stagehandExtractSkill } from "./stagehand-extract.js";
 import { stagehandObserveSkill } from "./stagehand-observe.js";
+import { memoryReadSkill } from "./memory-read.js";
+import { memoryWriteSkill } from "./memory-write.js";
+import { memoryDeleteSkill } from "./memory-delete.js";
+import { memoryListSkill } from "./memory-list.js";
 import type { SkillDefinition } from "../registry.js";
 
 export const builtinSkills: SkillDefinition[] = [
@@ -19,4 +23,8 @@ export const builtinSkills: SkillDefinition[] = [
   stagehandActSkill,
   stagehandExtractSkill,
   stagehandObserveSkill,
+  memoryReadSkill,
+  memoryWriteSkill,
+  memoryDeleteSkill,
+  memoryListSkill,
 ];

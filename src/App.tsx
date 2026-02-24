@@ -8,6 +8,7 @@ import Welcome from './components/onboarding/Welcome';
 import ApiKeySetup from './components/onboarding/ApiKeySetup';
 import RoleSelect from './components/onboarding/RoleSelect';
 import Settings from './components/settings/Settings';
+import Dashboard from './components/analytics/Dashboard';
 import type { AppSettings } from './lib/types';
 
 function Onboarding() {
@@ -52,6 +53,7 @@ export default function App() {
       <Layout>
         {currentView === 'home' && <AgentPicker />}
         {currentView === 'chat' && <ChatView />}
+        {currentView === 'analytics' && <Dashboard />}
       </Layout>
       {settingsOpen && <Settings />}
     </>

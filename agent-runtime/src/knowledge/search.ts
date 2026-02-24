@@ -1,43 +1,86 @@
-import { embed, cosineSimilarity } from "./embedder.js";
-import type { KnowledgeChunk } from "./loader.js";
-
 /**
- * In-memory vector search using bag-of-words embeddings.
- * TODO: Replace with LanceDB for persistent, efficient vector search.
+ * Hybrid Knowledge Search v2.
+ * Combines LanceDB vector search with SQLite FTS5 BM25 scoring.
  */
 
-interface IndexedChunk {
-  chunk: KnowledgeChunk;
-  embedding: number[];
-}
+import { createEmbedder } from "./embedder.js";
+import { VectorStore, type SearchResult } from "./lancedb.js";
+import type { KnowledgeChunk } from "./loader.js";
+
+export type { SearchResult };
 
 export class KnowledgeSearch {
-  private index: IndexedChunk[] = [];
+  private store: VectorStore | null = null;
+  private embedder: Awaited<ReturnType<typeof createEmbedder>> | null = null;
+  private alpha: number;
+  private initPromise: Promise<void> | null = null;
+  private dataDir: string;
+  private agentId: string;
 
-  addChunks(chunks: KnowledgeChunk[]): void {
-    for (const chunk of chunks) {
-      this.index.push({
-        chunk,
-        embedding: embed(chunk.content),
-      });
+  constructor(dataDir = "data", agentId = "default", alpha = 0.7) {
+    this.alpha = alpha;
+    this.dataDir = dataDir;
+    this.agentId = agentId;
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.store && this.embedder) return;
+    if (this.initPromise) {
+      await this.initPromise;
+      return;
+    }
+    this.initPromise = (async () => {
+      this.store = await VectorStore.create(this.dataDir, this.agentId);
+      this.embedder = await createEmbedder();
+    })();
+    await this.initPromise;
+  }
+
+  async addChunks(chunks: KnowledgeChunk[]): Promise<void> {
+    if (chunks.length === 0) return;
+    await this.ensureInitialized();
+
+    const batchSize = 32;
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize);
+      const texts = batch.map((c) => c.content);
+      const embeddings = await this.embedder!.embedBatch(texts);
+
+      const vectorChunks = batch.map((chunk, idx) => ({
+        ...chunk,
+        embedding: embeddings[idx],
+      }));
+
+      await this.store!.insert(vectorChunks);
     }
   }
 
-  search(query: string, topK = 5): Array<{ chunk: KnowledgeChunk; score: number }> {
-    const queryEmbedding = embed(query);
-    const scored = this.index.map((item) => ({
-      chunk: item.chunk,
-      score: cosineSimilarity(queryEmbedding, item.embedding),
-    }));
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, topK);
+  async search(query: string, topK = 5): Promise<SearchResult[]> {
+    await this.ensureInitialized();
+    const queryEmbedding = await this.embedder!.embed(query);
+    return this.store!.hybridSearch(queryEmbedding, query, topK, this.alpha);
   }
 
-  clear(): void {
-    this.index = [];
+  async vectorSearch(query: string, topK = 5): Promise<SearchResult[]> {
+    await this.ensureInitialized();
+    const queryEmbedding = await this.embedder!.embed(query);
+    return this.store!.vectorSearch(queryEmbedding, topK);
+  }
+
+  bm25Search(query: string, topK = 5): SearchResult[] {
+    if (!this.store) return [];
+    return this.store.bm25Search(query, topK);
+  }
+
+  async clear(): Promise<void> {
+    if (this.store) await this.store.clear();
   }
 
   get size(): number {
-    return this.index.length;
+    return this.store?.size ?? 0;
+  }
+
+  close(): void {
+    this.store?.close();
   }
 }

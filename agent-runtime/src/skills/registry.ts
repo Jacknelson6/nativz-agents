@@ -7,6 +7,7 @@ export interface SkillDefinition {
   description: string;
   parameters: ZodType;
   execute: (params: Record<string, unknown>) => Promise<string>;
+  group?: string;
 }
 
 export class SkillRegistry {
@@ -30,6 +31,29 @@ export class SkillRegistry {
 
   listNames(): string[] {
     return Array.from(this.skills.keys());
+  }
+
+  getByGroup(group: string): SkillDefinition[] {
+    return this.list().filter((s) => s.group === group);
+  }
+
+  search(query: string): SkillDefinition[] {
+    const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
+    if (terms.length === 0) return this.list();
+
+    const scored = this.list().map((skill) => {
+      const text = `${skill.name} ${skill.description}`.toLowerCase();
+      let score = 0;
+      for (const term of terms) {
+        if (text.includes(term)) score++;
+      }
+      return { skill, score };
+    });
+
+    return scored
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((s) => s.skill);
   }
 
   toClaudeTools(filter?: string[]): Tool[] {
