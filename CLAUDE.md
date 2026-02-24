@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus MCP
 
-This project is indexed by GitNexus as **nativz-agents** (1126 symbols, 2313 relationships, 76 execution flows).
+This project is indexed by GitNexus as **nativz-agents** (1182 symbols, 2419 relationships, 79 execution flows).
 
 GitNexus provides a knowledge graph over this codebase — call chains, blast radius, execution flows, and semantic search.
 
