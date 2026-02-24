@@ -2,172 +2,286 @@
 
 ## Overview
 
-Nativz Agents is a Tauri v2 desktop application for running local-first AI agents. It consists of three layers:
+Nativz Agents is a **Tauri v2 desktop application** for running local-first AI agents specialized for digital marketing agencies. Three-layer architecture: React frontend, Rust shell, Node.js sidecar runtime.
+
+**Stats:** ~130 source files, ~18,000 LOC across TypeScript, TSX, and Rust.
 
 ```
-┌─────────────────────────────────────────────────────┐
-│              React Frontend (Vite + Tailwind)        │
-│  AgentPicker · ChatView · ModelSelector · Dashboard  │
-│  MemoryInspector · Settings · Onboarding             │
-├──────────────────────┬──────────────────────────────┤
-│   Rust Backend       │  IPC (invoke/listen)          │
-│   (Tauri v2 Shell)   │                              │
-│   • Settings store   │  stdio JSON-RPC              │
-│   • Sidecar manager  ├──────────────────────────────┤
-│   • Agent list       │  Node.js Agent Runtime       │
-│   • Process lifecycle│  (sidecar process)           │
-└──────────────────────┴──────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                    React Frontend (Vite + Tailwind)           │
+│  ChatView · AgentPicker · AgentBuilder · AgentMarketplace    │
+│  Dashboard · CostCalculator · MemoryInspector · Settings     │
+│  KnowledgeBrowser · CommandPalette · NotificationCenter      │
+│  Onboarding (Welcome → RoleSelect → ApiKeySetup)             │
+├──────────────────────┬───────────────────────────────────────┤
+│   Rust Backend       │  IPC Bridge (14 Tauri commands)       │
+│   (Tauri v2 Shell)   │                                      │
+│   • Settings store   │  stdio JSON-RPC (15 handlers)        │
+│   • Sidecar manager  ├───────────────────────────────────────┤
+│   • Process lifecycle│  Node.js Agent Runtime (sidecar)      │
+│                      │  LLM · Memory · Skills · Knowledge    │
+│                      │  MCP · Browser · Eval · Telemetry     │
+│                      │  Webhooks · API Server · Batch        │
+└──────────────────────┴───────────────────────────────────────┘
 ```
 
-## Frontend (`src/`)
+---
 
-React 19 + TypeScript + Tailwind CSS. State via Zustand stores:
+## Layer 1: React Frontend (`src/`)
 
+### State Management (Zustand)
 | Store | Purpose |
 |-------|---------|
-| `appStore` | Settings, view routing, onboarding state |
-| `agentStore` | Agent list, selected agent |
-| `chatStore` | Messages, conversation state |
-| `modelStore` | Provider/model selection |
-| `analyticsStore` | Usage & cost stats |
+| `chatStore` | Messages, streaming state, active conversation |
+| `agentStore` | Agent list, selected agent, agent configs |
+| `analyticsStore` | Usage stats, cost stats |
+| `appStore` | Settings, theme, onboarding state |
+| `modelStore` | Provider list, selected model, model switching |
 
-All Tauri IPC calls go through `src/lib/tauri.ts` which wraps `@tauri-apps/api/core invoke()`.
+### Components
 
-## Rust Backend (`src-tauri/`)
+**Chat System:**
+- `ChatView` — Main chat interface with streaming support
+- `InputBar` — Message input with file upload, slash commands
+- `MessageBubble` — Rich message rendering (markdown, code blocks)
+- `StreamingMessage` — Token-by-token streaming display
+- `ThinkingIndicator` — Agent reasoning visualization
+- `ToolStatus` — Real-time tool execution status
+- `PlanView` — Multi-step plan visualization
+- `ArtifactCard` / `ArtifactRenderer` — Rich output rendering
+- `MessageActions` — Copy, regenerate, feedback
+- `ModelSelector` — Per-message model selection
 
-Minimal orchestration layer. Key responsibilities:
-- **Sidecar management** — spawns the Node.js agent runtime as a child process, communicates via JSON-RPC over stdio
-- **Settings persistence** — reads/writes `settings.json` in the app data directory
-- **Agent discovery** — reads `agents/*/manifest.json` for the agent picker
-- **IPC bridge** — 12 Tauri commands that proxy to the sidecar's RPC methods
+**Agent Management:**
+- `AgentPicker` — Agent selection sidebar
+- `AgentBuilder` — Custom agent creation with model/skill/knowledge config
+- `AgentMarketplace` — Browse, install, duplicate agent templates; star/favorite; category filtering
 
-### Tauri Commands → RPC Methods
+**Analytics:**
+- `Dashboard` — Token usage, cost tracking, per-agent/per-model breakdown
+- `CostCalculator` — Cost optimization advisor: spending breakdown, model switching recommendations, subscription vs API comparison
 
-| Tauri Command | RPC Method | Direction |
-|---------------|------------|-----------|
-| `list_agents` | (local Rust) | Rust only |
-| `get_settings` / `save_settings` | `set_api_key` | Rust + RPC |
-| `send_message` | `send_message` | → sidecar |
-| `get_history` | `get_history` | → sidecar |
-| `list_conversations` | `list_conversations` | → sidecar |
-| `load_conversation` | `load_conversation` | → sidecar |
-| `delete_conversation` | `delete_conversation` | → sidecar |
-| `set_provider` | `set_provider` | → sidecar |
-| `list_providers` | `list_providers` | → sidecar |
-| `get_usage_stats` | `get_usage_stats` | → sidecar |
-| `get_cost_stats` | `get_cost_stats` | → sidecar |
-| `get_memories` | `get_memories` | → sidecar |
-| `get_working_memory` | `get_working_memory` | → sidecar |
+**Knowledge & Memory:**
+- `KnowledgeBrowser` — Browse and manage agent knowledge bases
+- `MemoryInspector` — View working memory, entity graph, stored facts
 
-## Agent Runtime (`agent-runtime/`)
+**Layout:**
+- `Sidebar` — Navigation, conversation list
+- `TopBar` — Agent info, controls
+- `StatusBar` — Connection status, token count
+- `CommandPalette` — Cmd+K quick actions
+- `NotificationCenter` — System notifications
 
-Node.js sidecar process. Entry point: `src/index.ts` (RPC server). Core class: `AgentRuntime` in `src/agent/runtime.ts`.
+**Settings & Onboarding:**
+- `Settings` — App configuration
+- `ProviderConfig` — API key and provider management
+- `Welcome` → `RoleSelect` → `ApiKeySetup` — First-run flow
 
-### Module Map
+---
 
-```
-agent-runtime/src/
-├── agent/
-│   ├── runtime.ts        # Core AgentRuntime class (orchestrates everything)
-│   ├── loader.ts         # Manifest loading (v1 + v2 compat)
-│   ├── context.ts        # Prompt assembly (system + knowledge + memory)
-│   └── checkpoint.ts     # Durable execution checkpoints
-├── llm/
-│   ├── client.ts         # ClaudeClient (legacy Anthropic SDK wrapper)
-│   ├── provider-registry.ts  # Multi-provider registry
-│   ├── router.ts         # SmartRouter + complexity classification
-│   ├── cost-tracker.ts   # Per-conversation cost tracking
-│   ├── streaming.ts      # (legacy, unused — streaming handled in client.ts)
-│   └── providers/
-│       ├── types.ts      # LLMProvider interface
-│       ├── anthropic.ts  # Claude provider
-│       ├── openai.ts     # GPT provider
-│       ├── gemini.ts     # Google Gemini provider
-│       ├── ollama.ts     # Local Ollama provider
-│       └── openrouter.ts # OpenRouter fallback
-├── memory/
-│   ├── store.ts          # Legacy key-value SQLite store
-│   ├── structured.ts     # Entity-based fact memory with confidence
-│   ├── working.ts        # Per-conversation scratchpad
-│   ├── conversations.ts  # Conversation persistence
-│   ├── extractor.ts      # LLM-powered fact extraction
-│   └── summarizer.ts     # Conversation summarization
-├── knowledge/
-│   ├── search.ts         # Vector + keyword hybrid search
-│   ├── lancedb.ts        # LanceDB vector store
-│   ├── embedder.ts       # Ollama embedding generation
-│   ├── loader.ts         # Knowledge file ingestion
-│   └── graph.ts          # Knowledge graph
-├── skills/
-│   ├── registry.ts       # Skill registration + Claude tool conversion
-│   ├── executor.ts       # Skill execution engine
-│   ├── selector.ts       # Dynamic tool selection
-│   └── builtin/          # 13 built-in skills
-├── mcp/
-│   ├── registry.ts       # MCP server connection (legacy)
-│   ├── manager.ts        # MCP server lifecycle (v2, auto-restart)
-│   ├── client.ts         # MCP protocol client
-│   └── discovery.ts      # MCP server discovery
-├── context/
-│   ├── manager.ts        # Token budget allocation
-│   └── skill-loader.ts   # SKILL.md file loading
-├── eval/
-│   ├── scorer.ts         # Heuristic turn quality scoring
-│   └── tracker.ts        # Persistent eval results
-├── telemetry/
-│   ├── usage.ts          # Token usage tracking
-│   ├── cost.ts           # Cost estimation
-│   └── latency.ts        # Latency tracking
-├── browser/
-│   ├── manager.ts        # Browser lifecycle
-│   ├── pool.ts           # Browser pool
-│   └── stagehand.ts      # Stagehand automation
-├── tools/
-│   └── composio.ts       # Composio tool integration
-├── rpc/
-│   ├── router.ts         # JSON-RPC method router
-│   ├── server.ts         # stdio JSON-RPC server
-│   └── types.ts          # RPC type definitions
-├── index.ts              # Entry point (registers all RPC handlers)
-└── cli.ts                # CLI for direct testing
-```
+## Layer 2: Rust Backend (`src-tauri/src/`)
 
-### Agent Loop Flow
+8 Rust source files, ~650 LOC. Thin shell that:
 
-1. User sends message via frontend → Rust `send_message` → RPC `send_message`
-2. Runtime summarizes conversation if needed
-3. Builds context: system prompt + knowledge search + memory recall + working memory
-4. Selects model via SmartRouter (complexity classification)
-5. Selects relevant tools via ToolSelector
-6. Enters agent loop (max 20 iterations):
-   - Call LLM with context + tools
-   - If tool_use: execute tools, checkpoint, continue loop
-   - If text: return response, persist conversation, extract facts async
-7. Score turn quality, record telemetry
+1. **Manages the sidecar** — Spawns/kills the Node.js agent-runtime process
+2. **Settings persistence** — SQLite-backed settings store
+3. **IPC bridge** — 14 Tauri commands that proxy to JSON-RPC
 
-### Data Storage
+### IPC Commands (all registered in invoke_handler)
+`get_settings`, `save_settings`, `list_agents`, `send_message`, `get_history`, `list_conversations`, `load_conversation`, `set_provider`, `list_providers`, `get_usage_stats`, `delete_conversation`, `get_memories`, `get_working_memory`, `get_cost_stats`
 
-All SQLite databases stored in `data/` directory:
-- `memory.db` — legacy key-value memory
-- `structured_memory.db` — entity-based facts
-- `conversations.db` — conversation history
-- `checkpoints.db` — durable execution state
-- `working_memory.db` — per-conversation scratchpad
-- `eval.db` — turn quality scores
-- `usage.db` — token usage stats
-- `latency.db` — provider latency data
+---
 
-Each store initializes its own tables on construction.
+## Layer 3: Agent Runtime (`agent-runtime/src/`)
+
+The core intelligence layer. ~84 TypeScript files, ~14,000 LOC. Runs as a sidecar process communicating via stdio JSON-RPC.
+
+### Agent System (`agent/`)
+| Module | Purpose |
+|--------|---------|
+| `runtime.ts` | Main AgentRuntime class — orchestrates LLM, memory, tools, context |
+| `loader.ts` | Loads agent manifests from YAML/JSON configs |
+| `context.ts` | Context window assembly (system prompt + memory + knowledge + history) |
+| `planner.ts` | Multi-step task planning and decomposition |
+| `reflection.ts` | Self-evaluation and output improvement |
+| `chain.ts` | Sequential agent chaining (output → input) |
+| `parallel.ts` | Parallel agent execution for independent subtasks |
+| `handoff.ts` | Agent-to-agent handoff with context transfer |
+| `scheduling.ts` | Cron-based scheduled agent tasks |
+| `checkpoint.ts` | Conversation state persistence for recovery |
+| `guardrails.ts` | Input/output validation, safety filtering |
+| `streaming-ui.ts` | Streaming UI event protocol |
+| `structured-output.ts` | JSON schema-constrained output |
+| `conversation-title.ts` | Auto-generated conversation titles |
+| `batch.ts` | **Batch processing** — process arrays of items through an agent with configurable concurrency, progress tracking, CSV/JSON input |
+| `templates.ts` | **Prompt template engine** — Handlebars-style interpolation, SQLite-backed, pre-built templates for SEO/ads/content/email |
+
+### LLM Layer (`llm/`)
+| Module | Purpose |
+|--------|---------|
+| `client.ts` | Unified LLM client interface |
+| `router.ts` | Smart model routing based on task complexity |
+| `provider-registry.ts` | Dynamic provider registration |
+| `streaming.ts` | SSE/streaming response handling |
+| `cost-tracker.ts` | Per-conversation cost tracking with budgets |
+| `prompt-optimizer.ts` | Automatic prompt compression/optimization |
+| `token-cache.ts` | Token count caching for context management |
+| `providers/` | Anthropic, OpenAI, Google Gemini, Ollama, OpenRouter |
+
+### Memory System (`memory/`)
+| Module | Purpose |
+|--------|---------|
+| `store.ts` | SQLite-backed key-value memory |
+| `structured.ts` | Typed memory with categories (facts, preferences, decisions) |
+| `working.ts` | Session-scoped working memory |
+| `conversations.ts` | Conversation persistence with full message history |
+| `extractor.ts` | Automatic fact extraction from conversations |
+| `summarizer.ts` | Progressive conversation summarization |
+| `entity-graph.ts` | Entity relationship graph |
+
+### Knowledge System (`knowledge/`)
+| Module | Purpose |
+|--------|---------|
+| `search.ts` | Hybrid search (keyword + semantic + reranking) |
+| `embedder.ts` | Text embedding with caching |
+| `lancedb.ts` | LanceDB vector store integration |
+| `loader.ts` | Document ingestion (PDF, MD, TXT, HTML) |
+| `graph.ts` | Knowledge graph construction |
+| `reranker.ts` | Cross-encoder reranking |
+| `contextual-compression.ts` | Context-aware chunk compression |
+
+### Skills/Tools (`skills/`)
+14 built-in skills:
+- **Web:** `web-search`, `web-crawl`, `http-request`
+- **Files:** `file-read`, `file-write`
+- **Memory:** `memory-read`, `memory-write`, `memory-list`, `memory-delete`
+- **Browser:** `stagehand-act`, `stagehand-extract`, `stagehand-observe`, `screenshot`
+
+Plus: `registry.ts` (skill registration), `executor.ts` (safe execution with timeout), `selector.ts` (AI-driven tool selection)
+
+### Browser Automation (`browser/`)
+- `manager.ts` — Browser lifecycle management
+- `pool.ts` — Browser instance pooling
+- `stagehand.ts` — Stagehand integration for AI-driven browser control
+
+### MCP Integration (`mcp/`)
+- `client.ts` — MCP client implementation
+- `manager.ts` — Server lifecycle management
+- `registry.ts` — Tool registry from MCP servers
+- `discovery.ts` — Auto-discovery of MCP servers
+
+### Context Engineering (`context/`)
+- `manager.ts` — Token budget allocation across context sections
+- `skill-loader.ts` — Dynamic skill injection based on conversation context
+
+### Evaluation (`eval/`)
+- `scorer.ts` — Per-turn quality scoring (relevance, tool use, factuality)
+- `tracker.ts` — Evaluation history and regression detection
+
+### Telemetry (`telemetry/`)
+- `usage.ts` — Token usage tracking by agent, model, time period
+- `cost.ts` — Cost calculation with configurable per-model pricing
+- `latency.ts` — Response latency tracking and percentile analysis
+
+### Integrations (`integrations/`)
+| Module | Purpose |
+|--------|---------|
+| `export.ts` | Export conversations as Markdown, JSON, CSV, HTML/PDF |
+| `import.ts` | Import conversations and agent configs |
+| `webhooks.ts` | **Webhook system** — outgoing event notifications (task_complete, report_generated, etc.) with exponential backoff retry; incoming webhook triggers from Slack/Zapier; SQLite-backed registry |
+| `api-server.ts` | **Local REST API** — HTTP server on configurable port; endpoints: POST /chat, GET /agents, GET /conversations, GET /usage; API key auth; bridges to RPC router; lets external tools (Shortcuts, Alfred, CLI) interact with agents |
+
+### External Tools (`tools/`)
+- `composio.ts` — Composio integration for 3rd-party tool access
+
+### RPC Layer (`rpc/`)
+- `server.ts` — stdio JSON-RPC server (reads from stdin, writes to stdout)
+- `router.ts` — Method routing with handler registration
+- `types.ts` — Request/response type definitions
+
+---
 
 ## Agent Manifests (`agents/`)
 
-Each agent has a `manifest.json` defining:
-- Identity (name, description, icon, system prompt)
-- Model configuration (primary, fast, embedding models)
-- Knowledge paths (markdown/text files to index)
-- MCP server connections
-- Memory settings (fact extraction, working memory size)
-- Context budget allocation
-- Guardrails (max tokens per turn, allowed tools)
+5 pre-built agents, each with:
+- System prompt and personality
+- Model configuration (primary + fast)
+- Skill allowlist
+- Knowledge base paths
+- Memory settings
 
-The loader (`agent/loader.ts`) supports both v1 (flat) and v2 (nested) manifest formats.
+| Agent | Focus |
+|-------|-------|
+| `seo` | Technical SEO, keyword research, content optimization |
+| `ads` | Paid media strategy, ad copy, budget optimization |
+| `content-editor` | Content creation, editing, social media |
+| `account-manager` | Client communications, reporting |
+| `diy` | General-purpose, user-customizable |
+
+---
+
+## Data Flow
+
+### Chat Message Lifecycle
+```
+User Input → React ChatView
+  → Tauri IPC (invoke send_message)
+    → Rust sidecar bridge (JSON-RPC over stdio)
+      → AgentRuntime.sendMessage()
+        → Context assembly (system + memory + knowledge + history)
+        → SmartRouter selects model
+        → LLM provider call (streaming)
+        → Tool execution loop (up to 20 iterations)
+        → Fact extraction → memory update
+        → Response streamed back
+      ← JSON-RPC response
+    ← Tauri event (stream chunks)
+  ← React state update
+UI renders streaming response
+```
+
+### Webhook Event Flow
+```
+Agent completes task → WebhookManager.emit()
+  → Filter matching webhooks by event type
+  → POST to each registered URL
+  → On failure: exponential backoff retry (up to 5 attempts)
+  → Delivery history stored in SQLite
+```
+
+### External API Flow
+```
+External tool (Shortcuts/Alfred/CLI)
+  → HTTP request to localhost:9876
+  → API key validation
+  → Route matching
+  → RPC call to agent runtime
+  → Response returned as JSON
+```
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Desktop shell | Tauri v2 (Rust) |
+| Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
+| State | Zustand |
+| Backend runtime | Node.js (TypeScript, ESM) |
+| Database | SQLite (better-sqlite3) — memory, conversations, templates, webhooks |
+| Vector store | LanceDB |
+| LLM providers | Anthropic, OpenAI, Google Gemini, Ollama, OpenRouter |
+| Browser automation | Stagehand (Playwright-based) |
+| Tool protocol | Model Context Protocol (MCP) |
+| IPC | JSON-RPC over stdio |
+
+---
+
+## Security Model
+
+- **Local-first:** All data stored locally in SQLite databases
+- **API keys:** Stored in Tauri secure settings store
+- **API server:** Binds to 127.0.0.1 only, requires API key header
+- **Guardrails:** Input/output validation, tool execution sandboxing
+- **Budget limits:** Configurable daily/monthly cost limits with automatic cutoff
