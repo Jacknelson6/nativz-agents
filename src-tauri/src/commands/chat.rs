@@ -161,18 +161,11 @@ pub async fn set_provider(
     Ok(result.get("status").and_then(|v| v.as_str()).unwrap_or("ok").to_string())
 }
 
-#[derive(Debug, Serialize, Clone)]
-pub struct ProviderInfo {
-    pub name: String,
-    pub display_name: String,
-    pub available: bool,
-}
-
 #[tauri::command]
 pub async fn list_providers(
     agent_id: String,
     sidecar: tauri::State<'_, Mutex<SidecarManager>>,
-) -> Result<Vec<ProviderInfo>, String> {
+) -> Result<serde_json::Value, String> {
     let rx = {
         let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
         mgr.send_request("list_providers", json!({
@@ -182,21 +175,8 @@ pub async fn list_providers(
 
     let result = rx.await.map_err(|_| "Channel closed".to_string())??;
 
-    let providers = result
-        .get("providers")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .map(|p| ProviderInfo {
-                    name: p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    display_name: p.get("displayName").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    available: p.get("available").and_then(|v| v.as_bool()).unwrap_or(false),
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    Ok(providers)
+    // Pass through the full provider data from the agent runtime
+    Ok(result.get("providers").cloned().unwrap_or(serde_json::Value::Array(vec![])))
 }
 
 #[tauri::command]

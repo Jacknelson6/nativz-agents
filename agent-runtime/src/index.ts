@@ -233,14 +233,34 @@ router.register("list_providers", async (params) => {
   const agentId = params.agentId as string | undefined;
   if (agentId) {
     const rt = await getOrLoadRuntime(agentId);
-    const providers = rt.getProviderRegistry().getAll();
+    const registry = rt.getProviderRegistry();
+    const providers = registry.getAll();
+
+    // Run health checks to get fresh status
+    await registry.healthCheckAll().catch(() => {});
+
     return {
-      providers: providers.map((p) => ({
-        name: p.name,
-        displayName: p.displayName,
-        available: true,
-        models: p.listModels().map((m) => ({ id: m.id, name: m.name })),
-      })),
+      providers: providers.map((p) => {
+        const health = registry.getCachedHealth(p.name);
+        const models = p.listModels();
+        return {
+          id: p.name,
+          name: p.displayName,
+          models: models.map((m) => ({
+            id: m.id,
+            name: m.name,
+            contextWindow: m.contextWindow,
+            costPerInputToken: m.inputCostPer1M / 1_000_000,
+            costPerOutputToken: m.outputCostPer1M / 1_000_000,
+          })),
+          health: {
+            status: health?.available ? "healthy" : "down",
+            latencyMs: health?.latencyMs ?? 0,
+            lastChecked: health?.lastChecked ?? 0,
+          },
+          isSubscription: false,
+        };
+      }),
     };
   }
   return { providers: [] };

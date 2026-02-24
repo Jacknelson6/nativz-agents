@@ -44,6 +44,10 @@ impl SidecarManager {
         }
     }
 
+    pub fn set_runtime_path(&mut self, path: String) {
+        self.runtime_path = path;
+    }
+
     pub fn start(&mut self, app_handle: AppHandle) -> Result<(), String> {
         if self.process.is_some() {
             return Ok(());
@@ -54,24 +58,61 @@ impl SidecarManager {
             .parent().unwrap();
 
         // Use npx tsx to run the TypeScript runtime
-        // macOS .app bundles don't inherit user PATH, so try common locations
-        let npx_candidates = vec![
-            "/opt/homebrew/bin/npx",        // Apple Silicon homebrew
-            "/usr/local/bin/npx",           // Intel homebrew / nvm
-            "/Users/jacknelson/.nvm/versions/node/v25.5.0/bin/npx", // nvm
-            "npx",                          // fallback to PATH
+        // macOS .app bundles don't inherit user PATH, so discover node/npx dynamically
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/unknown".to_string());
+
+        // Build candidate list: check common nvm/fnm/homebrew/volta paths
+        let mut npx_candidates: Vec<String> = vec![
+            "/opt/homebrew/bin/npx".to_string(),        // Apple Silicon homebrew
+            "/usr/local/bin/npx".to_string(),           // Intel homebrew
         ];
 
+        // Discover nvm versions dynamically (instead of hardcoding)
+        let nvm_dir = format!("{}/.nvm/versions/node", home);
+        if let Ok(entries) = std::fs::read_dir(&nvm_dir) {
+            let mut versions: Vec<_> = entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                .collect();
+            // Sort by name descending to prefer latest version
+            versions.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+            for entry in versions {
+                let npx = entry.path().join("bin").join("npx");
+                if npx.exists() {
+                    npx_candidates.push(npx.to_string_lossy().to_string());
+                    break; // use the latest version
+                }
+            }
+        }
+
+        // Check fnm and volta too
+        let fnm_path = format!("{}/.local/share/fnm/node-versions", home);
+        if std::path::Path::new(&fnm_path).exists() {
+            npx_candidates.push(format!("{}/.local/share/fnm/aliases/default/bin/npx", home));
+        }
+        let volta_path = format!("{}/.volta/bin/npx", home);
+        if std::path::Path::new(&volta_path).exists() {
+            npx_candidates.push(volta_path);
+        }
+
+        npx_candidates.push("npx".to_string()); // fallback to PATH
+
         let npx_path = npx_candidates.iter()
-            .find(|p| std::path::Path::new(p).exists() || *p == &"npx")
-            .unwrap_or(&"npx");
+            .find(|p| std::path::Path::new(p.as_str()).exists() || p.as_str() == "npx")
+            .cloned()
+            .unwrap_or_else(|| "npx".to_string());
 
         eprintln!("[sidecar] Using npx at: {}", npx_path);
         eprintln!("[sidecar] Spawning: {} tsx {} in {:?}", npx_path, &self.runtime_path, runtime_dir);
 
-        // Set PATH explicitly so child processes (MCP servers) can find npx/node too
+        // Build PATH that includes the discovered node bin directory
+        let npx_dir = std::path::Path::new(&npx_path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
         let path_env = format!(
-            "/opt/homebrew/bin:/usr/local/bin:{}",
+            "{}:/opt/homebrew/bin:/usr/local/bin:{}",
+            npx_dir,
             std::env::var("PATH").unwrap_or_default()
         );
 

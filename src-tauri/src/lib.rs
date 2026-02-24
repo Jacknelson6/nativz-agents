@@ -10,53 +10,69 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Resolve project root — works both in dev and production (.app)
-    // CARGO_MANIFEST_DIR is baked at compile time, so it always points to the original source
-    let project_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .to_path_buf();
-    let runtime_path = project_root
-        .join("agent-runtime")
-        .join("src")
-        .join("index.ts")
-        .to_string_lossy()
-        .to_string();
-
-    eprintln!("[lib] Project root: {:?}", project_root);
-    eprintln!("[lib] Runtime path: {}", runtime_path);
-    eprintln!("[lib] Runtime exists: {}", std::path::Path::new(&runtime_path).exists());
-
-    let manager = SidecarManager::new(runtime_path);
+    // We pass a placeholder path here; the real path is resolved in setup()
+    // where we have access to the app's resource directory for production builds.
+    let manager = SidecarManager::new(String::new());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(Mutex::new(manager))
         .setup(|app| {
-            // Start the sidecar on app launch
+            // Resolve runtime path: try dev source first, then bundled resources
+            let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap()
+                .to_path_buf();
+            let dev_runtime_path = dev_root
+                .join("agent-runtime")
+                .join("src")
+                .join("index.ts");
+
+            let resource_base = app.path().resource_dir().ok();
+
+            // In production .app, resources are under the resource dir
+            let prod_runtime_path = resource_base.as_ref()
+                .map(|d| d.join("agent-runtime").join("src").join("index.ts"))
+                .filter(|p| p.exists());
+
+            let runtime_path = if dev_runtime_path.exists() {
+                dev_runtime_path.clone()
+            } else if let Some(ref prod_path) = prod_runtime_path {
+                prod_path.clone()
+            } else {
+                // Last resort: try _up_ prefix (Tauri resource bundling)
+                resource_base.as_ref()
+                    .map(|d| d.join("_up_").join("agent-runtime").join("src").join("index.ts"))
+                    .filter(|p| p.exists())
+                    .unwrap_or(dev_runtime_path)
+            };
+
+            let is_dev = dev_runtime_path.exists() && runtime_path == dev_runtime_path;
+
+            eprintln!("[lib] Runtime path: {}", runtime_path.display());
+            eprintln!("[lib] Runtime exists: {}", runtime_path.exists());
+            eprintln!("[lib] Is dev mode: {}", is_dev);
+
+            // Resolve agents directory
+            let agents_dir = resource_base.as_ref()
+                .map(|d| d.join("_up_").join("agents"))
+                .filter(|d| d.exists())
+                .or_else(|| resource_base.as_ref()
+                    .map(|d| d.join("agents"))
+                    .filter(|d| d.exists()))
+                .unwrap_or_else(|| dev_root.join("agents"))
+                .to_string_lossy()
+                .to_string();
+
+            // Update the sidecar manager with the resolved path and start it
             let state = app.state::<Mutex<SidecarManager>>();
             let mut mgr = state.lock().unwrap();
+            mgr.set_runtime_path(runtime_path.to_string_lossy().to_string());
+
             if let Err(e) = mgr.start(app.handle().clone()) {
                 eprintln!("Failed to start sidecar: {}", e);
             } else {
-                // Read API key from settings
                 let settings = commands::settings::get_settings(app.handle().clone());
-                // Try resource dir first (production DMG), fall back to dev path
-                let resource_base = app.path().resource_dir().ok();
-                let agents_dir = resource_base.as_ref()
-                    .map(|d| d.join("_up_").join("agents"))
-                    .filter(|d| d.exists())
-                    .or_else(|| resource_base.as_ref()
-                        .map(|d| d.join("agents"))
-                        .filter(|d| d.exists()))
-                    .unwrap_or_else(|| {
-                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                            .parent()
-                            .unwrap()
-                            .join("agents")
-                    })
-                    .to_string_lossy()
-                    .to_string();
                 let mut init_params = serde_json::json!({
                     "agentsDir": agents_dir
                 });

@@ -18,13 +18,20 @@ export const webSearchSkill: SkillDefinition = {
       const url = new URL("https://api.search.brave.com/res/v1/web/search");
       url.searchParams.set("q", query);
       url.searchParams.set("count", String(count ?? 5));
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch(url.toString(), {
         headers: {
           "Accept": "application/json",
           "Accept-Encoding": "gzip",
           "X-Subscription-Token": apiKey,
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       const data = await response.json() as { web?: { results?: Array<{ title: string; url: string; description: string }> } };
       const results = (data.web?.results ?? []).map((r) => ({
         title: r.title,
@@ -33,6 +40,9 @@ export const webSearchSkill: SkillDefinition = {
       }));
       return JSON.stringify({ results });
     } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        return JSON.stringify({ error: "Web search timed out after 30 seconds" });
+      }
       return JSON.stringify({ error: `Search failed: ${(err as Error).message}` });
     }
   },

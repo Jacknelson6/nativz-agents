@@ -7,21 +7,32 @@ interface ModelState {
   currentModelId: string | null;
   availableProviders: Provider[];
   loading: boolean;
-  refreshProviders: () => Promise<void>;
+  refreshProviders: (agentId?: string) => Promise<void>;
   setProvider: (agentId: string, providerId: string) => Promise<void>;
 }
 
-export const useModelStore = create<ModelState>((set) => ({
+export const useModelStore = create<ModelState>((set, get) => ({
   currentProviderId: null,
   currentModelId: null,
   availableProviders: [],
   loading: false,
 
-  refreshProviders: async () => {
+  refreshProviders: async (agentId?: string) => {
     set({ loading: true });
     try {
-      const providers = await listProviders();
-      set({ availableProviders: providers, loading: false });
+      const providers = await listProviders(agentId);
+      const updates: Partial<ModelState> = { availableProviders: providers, loading: false };
+
+      // Auto-select first healthy provider if none selected
+      if (!get().currentProviderId && providers.length > 0) {
+        const healthy = providers.find((p) => p.health?.status === 'healthy') ?? providers[0];
+        updates.currentProviderId = healthy.id;
+        if (healthy.models.length > 0) {
+          updates.currentModelId = healthy.models[0].id;
+        }
+      }
+
+      set(updates);
     } catch {
       set({ loading: false });
     }
@@ -29,6 +40,10 @@ export const useModelStore = create<ModelState>((set) => ({
 
   setProvider: async (agentId, providerId) => {
     await setTauriProvider(agentId, providerId);
-    set({ currentProviderId: providerId });
+    const provider = get().availableProviders.find((p) => p.id === providerId);
+    set({
+      currentProviderId: providerId,
+      currentModelId: provider?.models[0]?.id ?? null,
+    });
   },
 }));

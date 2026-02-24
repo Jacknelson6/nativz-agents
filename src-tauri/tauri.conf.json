@@ -31,12 +31,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": [
-      "binaries/agent-runtime"
-    ],
     "resources": [
       "../agents/**/*",
-      "../agent-runtime/package.json"
+      "../agent-runtime/package.json",
+      "../agent-runtime/src/**/*",
+      "../agent-runtime/node_modules/**/*"
     ]
   }
 }
