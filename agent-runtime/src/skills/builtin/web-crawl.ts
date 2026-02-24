@@ -23,8 +23,8 @@ export const webCrawlSkill: SkillDefinition = {
       }
       const result = await page.evaluate((sel?: string) => {
         const target = sel ? document.querySelector(sel) : document.body;
-        if (!target) return { text: "", title: document.title, links: [] };
-        const text = target.innerText || target.textContent || "";
+        if (!target) return { text: "", title: document.title, links: [] as Array<{text:string,href:string}>, h1s: [] as string[], h2s: [] as string[], metaDescription: "" };
+        const text = (target as HTMLElement).innerText || target.textContent || "";
         const title = document.title;
         const metaDesc = document.querySelector('meta[name="description"]')?.getAttribute("content") ?? "";
         const links = Array.from(document.querySelectorAll("a[href]"))
