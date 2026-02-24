@@ -1,68 +1,63 @@
-import { useState, useRef, useEffect } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { useState, useRef, useCallback } from "react";
+import { ArrowUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface Props {
-  onSend: (message: string) => void;
+  onSend: (content: string) => void;
   disabled?: boolean;
 }
 
 export default function InputBar({ onSend, disabled }: Props) {
-  const [text, setText] = useState('');
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const [input, setInput] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.style.height = 'auto';
-      ref.current.style.height = Math.min(ref.current.scrollHeight, 150) + 'px';
-    }
-  }, [text]);
-
-  const handleSend = () => {
-    const trimmed = text.trim();
+  const handleSend = useCallback(() => {
+    const trimmed = input.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
-    setText('');
-  };
+    setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [input, disabled, onSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  const hasContent = text.trim().length > 0;
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  };
 
   return (
-    <div className="px-6 pb-5 pt-2">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-end gap-3 bg-zinc-900 border border-zinc-800/80 rounded-xl px-4 py-2.5 focus-within:border-zinc-700 focus-within:ring-1 focus-within:ring-zinc-700/50 transition-all duration-200">
-          <textarea
-            ref={ref}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Send a message..."
-            rows={1}
-            disabled={disabled}
-            className="flex-1 bg-transparent resize-none text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 py-1 max-h-[150px] leading-relaxed"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!hasContent || disabled}
-            className={`p-1.5 rounded-lg shrink-0 transition-all duration-150 ${
-              hasContent && !disabled
-                ? 'bg-blue-500 text-white hover:bg-blue-400 shadow-sm shadow-blue-500/20'
-                : 'bg-zinc-800 text-zinc-600'
-            }`}
-          >
-            <ArrowUp size={16} strokeWidth={2.5} />
-          </button>
-        </div>
-        <p className="text-[10px] text-zinc-600 mt-2 text-center">
-          Press Enter to send · Shift+Enter for new line
-        </p>
-      </div>
+    <div className="border-t p-4">
+      <Card className="max-w-3xl mx-auto flex items-end gap-2 p-2">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={handleInput}
+          onKeyDown={handleKeyDown}
+          placeholder="Send a message..."
+          disabled={disabled}
+          rows={1}
+          className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground min-h-[36px] max-h-[200px] py-2 px-2"
+        />
+        <Button
+          size="icon"
+          onClick={handleSend}
+          disabled={!input.trim() || disabled}
+          className="h-8 w-8 shrink-0 rounded-lg"
+        >
+          <ArrowUp size={16} />
+        </Button>
+      </Card>
     </div>
   );
 }

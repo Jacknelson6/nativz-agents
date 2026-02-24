@@ -11,7 +11,7 @@ export default function Dashboard() {
 
   if (loading && !usageStats) {
     return (
-      <div className="flex items-center justify-center h-full text-muted text-sm">
+      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         Loading analytics...
       </div>
     );
@@ -36,12 +36,12 @@ export default function Dashboard() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold flex items-center gap-2">
-          <BarChart3 size={20} className="text-accent" />
+          <BarChart3 size={20} className="text-primary" />
           Usage Analytics
         </h1>
         <button
           onClick={refreshStats}
-          className="text-xs text-muted hover:text-white px-3 py-1.5 border border-border rounded-lg hover:bg-white/5 transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 border border-border rounded-lg hover:bg-muted/30 transition-colors"
         >
           Refresh
         </button>
@@ -73,10 +73,10 @@ export default function Dashboard() {
       </div>
 
       {/* Token Usage Chart */}
-      <div className="bg-surface border border-border rounded-xl p-5">
+      <div className="bg-card border border-border rounded-xl p-5">
         <h3 className="text-sm font-medium mb-4">Daily Token Usage</h3>
         {dailyData.length === 0 ? (
-          <p className="text-xs text-muted text-center py-8">No usage data yet</p>
+          <p className="text-xs text-muted-foreground text-center py-8">No usage data yet</p>
         ) : (
           <div className="flex items-end gap-1 h-40">
             {dailyData.slice(-30).map((day) => {
@@ -92,19 +92,19 @@ export default function Dashboard() {
                     style={{ height: `${Math.max(heightPct, 2)}%` }}
                   >
                     <div
-                      className="absolute bottom-0 w-full bg-accent/60"
+                      className="absolute bottom-0 w-full bg-primary/60"
                       style={{ height: `${inputPct}%` }}
                     />
                     <div
-                      className="absolute top-0 w-full bg-accent"
+                      className="absolute top-0 w-full bg-primary"
                       style={{ height: `${100 - inputPct}%` }}
                     />
                   </div>
                   {/* Tooltip */}
-                  <div className="absolute bottom-full mb-2 hidden group-hover:block bg-black border border-border rounded-lg px-2 py-1 text-[10px] whitespace-nowrap z-10">
+                  <div className="absolute bottom-full mb-2 hidden group-hover:block bg-background border border-border rounded-lg px-2 py-1 text-[10px] whitespace-nowrap z-10">
                     <p className="font-medium">{day.date}</p>
-                    <p className="text-muted">In: {formatNumber(day.inputTokens)}</p>
-                    <p className="text-muted">Out: {formatNumber(day.outputTokens)}</p>
+                    <p className="text-muted-foreground">In: {formatNumber(day.inputTokens)}</p>
+                    <p className="text-muted-foreground">Out: {formatNumber(day.outputTokens)}</p>
                   </div>
                 </div>
               );
@@ -113,10 +113,10 @@ export default function Dashboard() {
         )}
         <div className="flex items-center gap-4 mt-3 text-[10px] text-muted">
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-accent rounded-sm" /> Output
+            <span className="w-2 h-2 bg-primary rounded-sm" /> Output
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-accent/60 rounded-sm" /> Input
+            <span className="w-2 h-2 bg-primary/60 rounded-sm" /> Input
           </div>
         </div>
       </div>
@@ -145,7 +145,7 @@ export default function Dashboard() {
 
       {/* Daily Cost */}
       {costStats && Object.keys(costStats.dailyCost).length > 0 && (
-        <div className="bg-surface border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-xl p-5">
           <h3 className="text-sm font-medium mb-3">Daily Costs</h3>
           <div className="space-y-1.5">
             {Object.entries(costStats.dailyCost)
@@ -160,9 +160,9 @@ export default function Dashboard() {
                 return (
                   <div key={date} className="flex items-center gap-3 text-xs">
                     <span className="text-muted w-20 shrink-0">{date}</span>
-                    <div className="flex-1 h-4 bg-white/5 rounded overflow-hidden">
+                    <div className="flex-1 h-4 bg-muted/30 rounded overflow-hidden">
                       <div
-                        className="h-full bg-accent/40 rounded"
+                        className="h-full bg-primary/40 rounded"
                         style={{ width: `${widthPct}%` }}
                       />
                     </div>
@@ -191,12 +191,12 @@ function StatCard({
   accent?: boolean;
 }) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-4">
-      <div className="flex items-center gap-1.5 text-muted mb-2">
+    <div className="bg-card border border-border rounded-xl p-4">
+      <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
         {icon}
         <span className="text-[10px] uppercase tracking-wider">{label}</span>
       </div>
-      <p className={`text-xl font-semibold ${accent ? 'text-success' : ''}`}>{value}</p>
+      <p className={`text-xl font-semibold ${accent ? 'text-emerald-400' : ''}`}>{value}</p>
     </div>
   );
 }
@@ -215,7 +215,7 @@ function BreakdownCard({
   const entries = Object.entries(data).sort(([, a], [, b]) => b - a);
 
   return (
-    <div className="bg-surface border border-border rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4">
       <h3 className="text-xs font-medium mb-3">{title}</h3>
       {entries.length === 0 ? (
         <p className="text-[10px] text-muted">No data</p>
@@ -229,9 +229,9 @@ function BreakdownCard({
                   <span className="truncate text-muted">{key}</span>
                   <span className="font-mono ml-2">{formatter(val)}</span>
                 </div>
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-accent rounded-full"
+                    className="h-full bg-primary rounded-full"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

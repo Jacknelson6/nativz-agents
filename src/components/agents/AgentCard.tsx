@@ -1,5 +1,12 @@
-import type { Agent } from '../../lib/types';
-import { ArrowRight } from 'lucide-react';
+import type { Agent } from "../../lib/types";
+import { ArrowRight } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface Props {
   agent: Agent;
@@ -8,16 +15,22 @@ interface Props {
 
 export default function AgentCard({ agent, onSelect }: Props) {
   return (
-    <button
+    <Card
+      className="cursor-pointer transition-all hover:ring-1 hover:ring-primary group"
       onClick={() => onSelect(agent)}
-      className="group text-left p-5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all duration-150 hover:shadow-lg hover:shadow-zinc-950/50"
     >
-      <div className="text-2xl mb-3">{agent.icon}</div>
-      <h3 className="font-semibold text-[13px] text-zinc-100 mb-1">{agent.name}</h3>
-      <p className="text-[12px] text-zinc-500 leading-relaxed mb-4 line-clamp-2">{agent.description}</p>
-      <div className="flex items-center gap-1.5 text-[12px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-        Start Chat <ArrowRight size={12} />
-      </div>
-    </button>
+      <CardHeader className="pb-2">
+        <span className="text-2xl mb-1">{agent.icon}</span>
+        <CardTitle className="text-sm">{agent.name}</CardTitle>
+        <CardDescription className="line-clamp-2 text-xs">
+          {agent.description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-1.5 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+          Start Chat <ArrowRight size={12} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

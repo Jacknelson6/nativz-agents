@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
-import { useAgentStore } from '../../stores/agentStore';
-import { useChatStore } from '../../stores/chatStore';
-import MessageBubble from './MessageBubble';
-import InputBar from './InputBar';
-import EmptyState from './EmptyState';
-import ThinkingIndicator from './ThinkingIndicator';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useRef } from "react";
+import { useAgentStore } from "../../stores/agentStore";
+import { useChatStore } from "../../stores/chatStore";
+import MessageBubble from "./MessageBubble";
+import InputBar from "./InputBar";
+import EmptyState from "./EmptyState";
+import ThinkingIndicator from "./ThinkingIndicator";
+import { Loader2 } from "lucide-react";
 
 export default function ChatView() {
   const { selectedAgent } = useAgentStore();
@@ -17,7 +17,7 @@ export default function ChatView() {
   }, [selectedAgent?.id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
 
   if (!selectedAgent) return null;
@@ -27,7 +27,8 @@ export default function ChatView() {
   };
 
   const lastMsg = messages[messages.length - 1];
-  const isLastStreaming = isStreaming && lastMsg?.role === 'assistant' && lastMsg.content === '';
+  const isLastStreaming =
+    isStreaming && lastMsg?.role === "assistant" && lastMsg.content === "";
 
   return (
     <div className="flex flex-col h-full">
@@ -38,7 +39,12 @@ export default function ChatView() {
           <div className="max-w-3xl mx-auto px-6 py-6">
             <div className="space-y-1">
               {messages.map((msg, i) => {
-                if (isStreaming && i === messages.length - 1 && msg.role === 'assistant' && msg.content === '') {
+                if (
+                  isStreaming &&
+                  i === messages.length - 1 &&
+                  msg.role === "assistant" &&
+                  msg.content === ""
+                ) {
                   return null;
                 }
                 return <MessageBubble key={msg.id} message={msg} />;
@@ -46,16 +52,26 @@ export default function ChatView() {
             </div>
             {isLastStreaming && (
               <ThinkingIndicator
-                steps={[{ id: '1', type: 'thinking', label: 'Processing your request...', status: 'active', timestamp: Date.now() }]}
+                steps={[
+                  {
+                    id: "1",
+                    type: "thinking",
+                    label: "Processing your request...",
+                    status: "active",
+                    timestamp: Date.now(),
+                  },
+                ]}
                 isActive={true}
               />
             )}
-            {isStreaming && lastMsg?.role === 'assistant' && lastMsg.content !== '' && (
-              <div className="flex items-center gap-2 text-zinc-500 text-xs mt-3 ml-1">
-                <Loader2 size={12} className="animate-spin" />
-                <span>Streaming...</span>
-              </div>
-            )}
+            {isStreaming &&
+              lastMsg?.role === "assistant" &&
+              lastMsg.content !== "" && (
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mt-3 ml-1">
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>Streaming...</span>
+                </div>
+              )}
             <div ref={bottomRef} />
           </div>
         )}

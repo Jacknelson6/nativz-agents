@@ -84,7 +84,7 @@ const TOKEN_CLASSES: Record<string, RegExp> = {
   'text-emerald-400': /(["'`])(?:(?!\1)[^\\]|\\.)*?\1/g,
   'text-amber-400': /\b(\d+\.?\d*)\b/g,
   'text-sky-400': /\b(true|false|null|undefined|NaN|Infinity)\b/g,
-  'text-zinc-500': /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g,
+  'text-muted-foreground': /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g,
 };
 
 function highlightCode(code: string): string {
@@ -114,7 +114,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="p-1.5 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+      className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
       title="Copy"
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -136,7 +136,7 @@ function DownloadButton({ content, filename }: { content: string; filename: stri
   return (
     <button
       onClick={handleDownload}
-      className="p-1.5 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+      className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
       title={`Download as ${filename}`}
     >
       <Download size={14} />
@@ -161,18 +161,18 @@ function ArtifactShell({
 
   return (
     <div
-      className={`my-3 rounded-xl border border-white/10 bg-zinc-900/80 backdrop-blur-sm overflow-hidden transition-all ${
+      className={`my-3 rounded-xl border border-border bg-card/80 backdrop-blur-sm overflow-hidden transition-all ${
         expanded ? 'fixed inset-4 z-50 m-0 rounded-2xl' : ''
       }`}
     >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 bg-white/[0.02]">
-        <span className="text-zinc-400">{icon}</span>
-        <span className="text-xs font-medium text-zinc-300 flex-1">{title}</span>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-white/[0.02]">
+        <span className="text-muted-foreground">{icon}</span>
+        <span className="text-xs font-medium text-foreground/80 flex-1">{title}</span>
         <CopyButton text={content} />
         <DownloadButton content={content} filename={filename} />
         <button
           onClick={() => setExpanded(!expanded)}
-          className="p-1.5 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+          className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
         >
           {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
         </button>
@@ -181,7 +181,7 @@ function ArtifactShell({
         {children}
       </div>
       {expanded && (
-        <div className="fixed inset-0 -z-10 bg-black/60" onClick={() => setExpanded(false)} />
+        <div className="fixed inset-0 -z-10 bg-background/70" onClick={() => setExpanded(false)} />
       )}
     </div>
   );
@@ -221,11 +221,11 @@ function TableView({ content }: { content: string }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/10">
+            <tr className="border-b border-border">
               {headers.map((h, i) => (
                 <th
                   key={i}
-                  className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-300 uppercase tracking-wider bg-white/[0.02]"
+                  className="px-4 py-2.5 text-left text-xs font-semibold text-foreground/80 uppercase tracking-wider bg-white/[0.02]"
                 >
                   {h}
                 </th>
@@ -236,10 +236,10 @@ function TableView({ content }: { content: string }) {
             {rows.map((row, ri) => (
               <tr
                 key={ri}
-                className="border-b border-white/5 hover:bg-white/[0.03] transition-colors"
+                className="border-b border-border/50 hover:bg-muted/20 transition-colors"
               >
                 {row.map((cell, ci) => (
-                  <td key={ci} className="px-4 py-2 text-zinc-300">
+                  <td key={ci} className="px-4 py-2 text-foreground/80">
                     {cell}
                   </td>
                 ))}
@@ -278,7 +278,7 @@ function JsonNode({ name, value, depth }: { name?: string; value: unknown; depth
     return (
       <div className="flex items-center gap-1" style={{ paddingLeft: depth * 16 }}>
         {name && <span className="text-purple-400">{name}: </span>}
-        <span className="text-zinc-500">null</span>
+        <span className="text-muted-foreground">null</span>
       </div>
     );
   }
@@ -306,12 +306,12 @@ function JsonNode({ name, value, depth }: { name?: string; value: unknown; depth
       <div>
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1 hover:bg-white/5 rounded w-full text-left"
+          className="flex items-center gap-1 hover:bg-muted/30 rounded w-full text-left"
           style={{ paddingLeft: depth * 16 }}
         >
           {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           {name && <span className="text-purple-400">{name}: </span>}
-          <span className="text-zinc-500">[{value.length}]</span>
+          <span className="text-muted-foreground">[{value.length}]</span>
         </button>
         {open && value.map((item, i) => <JsonNode key={i} name={String(i)} value={item} depth={depth + 1} />)}
       </div>
@@ -324,12 +324,12 @@ function JsonNode({ name, value, depth }: { name?: string; value: unknown; depth
       <div>
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1 hover:bg-white/5 rounded w-full text-left"
+          className="flex items-center gap-1 hover:bg-muted/30 rounded w-full text-left"
           style={{ paddingLeft: depth * 16 }}
         >
           {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           {name && <span className="text-purple-400">{name}: </span>}
-          <span className="text-zinc-500">{`{${entries.length}}`}</span>
+          <span className="text-muted-foreground">{`{${entries.length}}`}</span>
         </button>
         {open && entries.map(([k, v]) => <JsonNode key={k} name={k} value={v} depth={depth + 1} />)}
       </div>
@@ -372,7 +372,7 @@ function ReportView({ content }: { content: string }) {
       filename="report.md"
     >
       <div className="p-4 prose prose-invert prose-sm max-w-none">
-        <pre className="whitespace-pre-wrap text-sm text-zinc-300 font-sans leading-relaxed">
+        <pre className="whitespace-pre-wrap text-sm text-foreground/80 font-sans leading-relaxed">
           {content}
         </pre>
       </div>
@@ -388,7 +388,7 @@ function CalendarView({ content }: { content: string }) {
       content={content}
       filename="calendar.md"
     >
-      <div className="p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-sans">
+      <div className="p-4 text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans">
         {content}
       </div>
     </ArtifactShell>

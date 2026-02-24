@@ -1,0 +1,35 @@
+#!/bin/bash
+# Nativz Agents CLI — just run: ./na "your message"
+cd "$(dirname "$0")"
+
+# Auto-load API key from app settings or .env
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+  SETTINGS="$HOME/Library/Application Support/com.nativz.agents/settings.json"
+  if [ -f "$SETTINGS" ]; then
+    export ANTHROPIC_API_KEY=$(python3 -c "import json; print(json.load(open('$SETTINGS'))['apiKey'])" 2>/dev/null)
+  fi
+  if [ -f .env ]; then
+    export $(grep ANTHROPIC_API_KEY .env | xargs) 2>/dev/null
+  fi
+fi
+
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+  echo "❌ No API key found. Either:"
+  echo "   1. Set it in the Nativz Agents app settings"
+  echo "   2. Create .env with ANTHROPIC_API_KEY=sk-ant-..."
+  echo "   3. export ANTHROPIC_API_KEY=sk-ant-..."
+  exit 1
+fi
+
+AGENT="${NA_AGENT:-diy}"
+
+if [ "$1" = "--agent" ]; then
+  AGENT="$2"
+  shift 2
+fi
+
+if [ -n "$1" ]; then
+  npx tsx agent-runtime/src/cli.ts --agent "$AGENT" --message "$*"
+else
+  npx tsx agent-runtime/src/cli.ts --agent "$AGENT"
+fi

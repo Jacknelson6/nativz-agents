@@ -62,14 +62,6 @@
         "-y",
         "@modelcontextprotocol/server-memory"
       ]
-    },
-    {
-      "name": "fetch",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-server-fetch"
-      ]
     }
   ],
   "memory": {

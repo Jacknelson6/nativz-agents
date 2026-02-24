@@ -36,22 +36,22 @@ function StepItem({ step }: { step: ThinkingStep }) {
       <button
         type="button"
         onClick={() => step.detail && setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded hover:bg-white/5 transition-colors text-sm"
+        className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded hover:bg-muted/30 transition-colors text-sm"
       >
         {step.status === 'active' ? (
           <Loader2 size={14} className="animate-spin text-blue-400 shrink-0" />
         ) : (
-          <Icon size={14} className="text-zinc-500 shrink-0" />
+          <Icon size={14} className="text-muted-foreground shrink-0" />
         )}
-        <span className="text-zinc-300 truncate">{step.label}</span>
+        <span className="text-foreground/80 truncate">{step.label}</span>
         {step.detail && (
           expanded
-            ? <ChevronDown size={12} className="text-zinc-600 ml-auto shrink-0" />
-            : <ChevronRight size={12} className="text-zinc-600 ml-auto shrink-0" />
+            ? <ChevronDown size={12} className="text-muted-foreground/60 ml-auto shrink-0" />
+            : <ChevronRight size={12} className="text-muted-foreground/60 ml-auto shrink-0" />
         )}
       </button>
       {expanded && step.detail && (
-        <div className="ml-7 px-2 py-1 text-xs text-zinc-500 font-mono whitespace-pre-wrap border-l border-zinc-800">
+        <div className="ml-7 px-2 py-1 text-xs text-muted-foreground font-mono whitespace-pre-wrap border-l border-border">
           {step.detail}
         </div>
       )}
@@ -65,23 +65,23 @@ export default function ThinkingIndicator({ steps, isActive }: ThinkingIndicator
   if (steps.length === 0 && !isActive) return null;
 
   return (
-    <div className="my-2 rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden transition-all duration-300">
+    <div className="my-2 rounded-lg border border-border bg-card/50 overflow-hidden transition-all duration-300">
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-white/5 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/30 transition-colors"
       >
         {isActive ? (
           <Loader2 size={16} className="animate-spin text-blue-400" />
         ) : (
-          <Brain size={16} className="text-zinc-500" />
+          <Brain size={16} className="text-muted-foreground" />
         )}
-        <span className="text-sm text-zinc-400 font-medium">
+        <span className="text-sm text-muted-foreground font-medium">
           {isActive ? 'Thinking...' : `Completed ${steps.length} steps`}
         </span>
         {collapsed
-          ? <ChevronRight size={14} className="text-zinc-600 ml-auto" />
-          : <ChevronDown size={14} className="text-zinc-600 ml-auto" />
+          ? <ChevronRight size={14} className="text-muted-foreground/60 ml-auto" />
+          : <ChevronDown size={14} className="text-muted-foreground/60 ml-auto" />
         }
       </button>
 

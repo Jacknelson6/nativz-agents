@@ -63,8 +63,10 @@ export class SkillRegistry {
 
     return skills.map((skill) => {
       const jsonSchema = zodToJsonSchema(skill.parameters, { target: "openApi3" });
+      // Sanitize tool name: Claude requires ^[a-zA-Z0-9_-]{1,128}$
+      const sanitizedName = skill.name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 128);
       return {
-        name: skill.name,
+        name: sanitizedName,
         description: skill.description,
         input_schema: jsonSchema as Tool["input_schema"],
       };

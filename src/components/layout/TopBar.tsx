@@ -1,9 +1,17 @@
-import { useAgentStore } from '../../stores/agentStore';
-import { useAppStore } from '../../stores/appStore';
-import { Settings, Brain } from 'lucide-react';
-import ModelSelector from '../chat/ModelSelector';
-import { useState } from 'react';
-import MemoryInspector from '../memory/MemoryInspector';
+import { useAgentStore } from "../../stores/agentStore";
+import { useAppStore } from "../../stores/appStore";
+import { Settings, Brain } from "lucide-react";
+import ModelSelector from "../chat/ModelSelector";
+import { useState } from "react";
+import MemoryInspector from "../memory/MemoryInspector";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function TopBar() {
   const { selectedAgent } = useAgentStore();
@@ -12,38 +20,60 @@ export default function TopBar() {
 
   return (
     <>
-      <div className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-5 bg-zinc-950/80 backdrop-blur-sm">
-        <div className="flex items-center gap-2.5">
+      <header className="flex h-12 items-center justify-between border-b px-3 shrink-0">
+        <div className="flex items-center gap-2">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="h-4" />
           {selectedAgent ? (
-            <>
+            <div className="flex items-center gap-2 ml-1">
               <span className="text-base">{selectedAgent.icon}</span>
               <div>
-                <h2 className="text-[13px] font-semibold text-zinc-100 leading-tight">{selectedAgent.name}</h2>
-                <p className="text-[11px] text-zinc-500 leading-tight">{selectedAgent.description}</p>
+                <h2 className="text-sm font-semibold leading-tight">
+                  {selectedAgent.name}
+                </h2>
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  {selectedAgent.description}
+                </p>
               </div>
-            </>
+            </div>
           ) : (
-            <h2 className="text-[13px] font-semibold text-zinc-100">Home</h2>
+            <h2 className="text-sm font-semibold ml-1">Home</h2>
           )}
         </div>
+
         <div className="flex items-center gap-1">
           <ModelSelector />
-          <button
-            onClick={() => setMemoryOpen(true)}
-            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors duration-150"
-            title="Memory Inspector"
-          >
-            <Brain size={16} />
-          </button>
-          <button
-            onClick={toggleSettings}
-            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors duration-150"
-          >
-            <Settings size={16} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setMemoryOpen(true)}
+              >
+                <Brain size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Memory Inspector</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={toggleSettings}
+              >
+                <Settings size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Settings</TooltipContent>
+          </Tooltip>
         </div>
-      </div>
-      {memoryOpen && <MemoryInspector onClose={() => setMemoryOpen(false)} />}
+      </header>
+      {memoryOpen && (
+        <MemoryInspector onClose={() => setMemoryOpen(false)} />
+      )}
     </>
   );
 }

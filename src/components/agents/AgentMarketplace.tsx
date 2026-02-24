@@ -218,18 +218,18 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
       <div className="p-6 max-w-3xl mx-auto">
         <button
           onClick={() => setSelectedAgent(null)}
-          className="text-xs text-muted hover:text-white mb-4 flex items-center gap-1"
+          className="text-xs text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1"
         >
           ← Back to Marketplace
         </button>
 
-        <div className="bg-surface border border-border rounded-xl p-6">
+        <div className="bg-card border border-border rounded-xl p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <span className="text-3xl">{selectedAgent.icon}</span>
               <div>
                 <h2 className="text-lg font-semibold">{selectedAgent.name}</h2>
-                <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                   <CategoryIcon size={12} />
                   <span>{CATEGORY_LABELS[selectedAgent.category]}</span>
                   <span>•</span>
@@ -242,37 +242,37 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
             <button
               onClick={() => toggleStar(selectedAgent.id)}
               className={`p-2 rounded-lg transition-colors ${
-                starredIds.has(selectedAgent.id) ? 'text-yellow-400' : 'text-muted hover:text-white'
+                starredIds.has(selectedAgent.id) ? 'text-yellow-400' : 'text-muted hover:text-foreground'
               }`}
             >
               <Star size={16} fill={starredIds.has(selectedAgent.id) ? 'currentColor' : 'none'} />
             </button>
           </div>
 
-          <p className="text-sm text-muted mb-6">{selectedAgent.longDescription}</p>
+          <p className="text-sm text-muted-foreground mb-6">{selectedAgent.longDescription}</p>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <h3 className="text-xs font-medium text-muted mb-2">Capabilities</h3>
+              <h3 className="text-xs font-medium text-muted-foreground mb-2">Capabilities</h3>
               <div className="space-y-1">
                 {selectedAgent.capabilities.map((cap) => (
                   <div key={cap} className="flex items-center gap-2 text-sm">
-                    <Sparkles size={10} className="text-accent" />
+                    <Sparkles size={10} className="text-primary" />
                     {cap}
                   </div>
                 ))}
               </div>
             </div>
             <div>
-              <h3 className="text-xs font-medium text-muted mb-2">Tools</h3>
+              <h3 className="text-xs font-medium text-muted-foreground mb-2">Tools</h3>
               <div className="flex flex-wrap gap-1.5">
                 {selectedAgent.tools.map((tool) => (
-                  <span key={tool} className="text-xs bg-white/5 border border-border rounded px-2 py-0.5">
+                  <span key={tool} className="text-xs bg-muted/30 border border-border rounded px-2 py-0.5">
                     {tool}
                   </span>
                 ))}
               </div>
-              <h3 className="text-xs font-medium text-muted mt-4 mb-1">Knowledge Base</h3>
+              <h3 className="text-xs font-medium text-muted-foreground mt-4 mb-1">Knowledge Base</h3>
               <span className="text-sm">{selectedAgent.knowledgeSize}</span>
             </div>
           </div>
@@ -281,7 +281,7 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
             {selectedAgent.installed ? (
               <button
                 onClick={() => onCreateFromTemplate?.(selectedAgent.id)}
-                className="flex items-center gap-2 px-4 py-2 bg-accent text-black rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 <Copy size={14} />
                 Duplicate & Customize
@@ -289,20 +289,20 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
             ) : selectedAgent.author === 'Community' ? (
               <button
                 disabled
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 text-muted rounded-lg text-sm cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-muted/50 text-muted-foreground rounded-lg text-sm cursor-not-allowed"
               >
                 <Lock size={14} />
                 Coming Soon
               </button>
             ) : (
-              <button className="flex items-center gap-2 px-4 py-2 bg-accent text-black rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors">
+              <button className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
                 <Download size={14} />
                 Install
               </button>
             )}
             <button
               onClick={() => onCreateFromTemplate?.(selectedAgent.id)}
-              className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm hover:bg-white/5 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted/30 transition-colors"
             >
               <Plus size={14} />
               Create from Template
@@ -319,7 +319,7 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
     <div className="p-6 max-w-4xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold flex items-center gap-2">
-          <Store size={20} className="text-accent" />
+          <Store size={20} className="text-primary" />
           Agent Marketplace
         </h1>
         <span className="text-xs text-muted">{filteredAgents.length} agents</span>
@@ -334,7 +334,7 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
             placeholder="Search agents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent"
+            className="w-full pl-9 pr-3 py-2 bg-card border border-border rounded-lg text-sm focus:outline-none focus:border-primary"
           />
         </div>
       </div>
@@ -347,8 +347,8 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
             onClick={() => setSelectedCategory(cat)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
               selectedCategory === cat
-                ? 'bg-accent text-black'
-                : 'bg-surface border border-border text-muted hover:text-white hover:bg-white/5'
+                ? 'bg-primary text-black'
+                : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/30'
             }`}
           >
             {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
@@ -364,13 +364,13 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
             <button
               key={agent.id}
               onClick={() => setSelectedAgent(agent)}
-              className="text-left bg-surface border border-border rounded-xl p-4 hover:border-accent/50 transition-all group"
+              className="text-left bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-all group"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{agent.icon}</span>
                   <div>
-                    <h3 className="text-sm font-medium group-hover:text-accent transition-colors">{agent.name}</h3>
+                    <h3 className="text-sm font-medium group-hover:text-primary transition-colors">{agent.name}</h3>
                     <div className="flex items-center gap-1.5 text-[10px] text-muted">
                       <CategoryIcon size={10} />
                       <span>{CATEGORY_LABELS[agent.category]}</span>
@@ -399,12 +399,12 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
                 </div>
               </div>
 
-              <p className="text-xs text-muted mb-3 line-clamp-2">{agent.description}</p>
+              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{agent.description}</p>
 
               <div className="flex items-center justify-between">
                 <div className="flex flex-wrap gap-1">
                   {agent.tags.slice(0, 3).map((tag) => (
-                    <span key={tag} className="text-[10px] bg-white/5 border border-border rounded px-1.5 py-0.5 text-muted">
+                    <span key={tag} className="text-[10px] bg-muted/30 border border-border rounded px-1.5 py-0.5 text-muted">
                       {tag}
                     </span>
                   ))}
@@ -417,25 +417,25 @@ export default function AgentMarketplace({ onCreateFromTemplate }: AgentMarketpl
       </div>
 
       {filteredAgents.length === 0 && (
-        <div className="text-center py-12 text-muted text-sm">
+        <div className="text-center py-12 text-muted-foreground text-sm">
           No agents match your search. Try a different query.
         </div>
       )}
 
       {/* Community CTA */}
-      <div className="bg-surface border border-border rounded-xl p-4 flex items-center justify-between">
+      <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium flex items-center gap-2">
-            <Globe size={14} className="text-accent" />
+            <Globe size={14} className="text-primary" />
             Community Marketplace
           </h3>
-          <p className="text-xs text-muted mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Share your custom agents and discover templates from the community. Coming soon.
           </p>
         </div>
         <button
           disabled
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs text-muted cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs text-muted-foreground cursor-not-allowed"
         >
           <ExternalLink size={12} />
           Explore

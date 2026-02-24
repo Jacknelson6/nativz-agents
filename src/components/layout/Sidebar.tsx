@@ -1,12 +1,41 @@
-import { useState, useEffect } from 'react';
-import { useAgentStore } from '../../stores/agentStore';
-import { useAppStore } from '../../stores/appStore';
-import { useChatStore } from '../../stores/chatStore';
-import { listConversations, deleteConversation as deleteTauriConv, loadConversation } from '../../lib/tauri';
-import type { ConversationSummary } from '../../lib/types';
-import { Settings, Home, Plus, MessageSquare, Trash2, BarChart3, BookOpen, Store } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useAgentStore } from "../../stores/agentStore";
+import { useAppStore } from "../../stores/appStore";
+import { useChatStore } from "../../stores/chatStore";
+import {
+  listConversations,
+  deleteConversation as deleteTauriConv,
+  loadConversation,
+} from "../../lib/tauri";
+import type { ConversationSummary } from "../../lib/types";
+import {
+  Home,
+  Plus,
+  MessageSquare,
+  Trash2,
+  BarChart3,
+  BookOpen,
+  Store,
+  Settings,
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  SidebarSeparator,
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-export default function Sidebar() {
+export default function AppSidebar() {
   const { agents, selectedAgent, selectAgent } = useAgentStore();
   const { setView, toggleSettings, currentView } = useAppStore();
   const { clearMessages } = useChatStore();
@@ -29,7 +58,7 @@ export default function Sidebar() {
   const handleNewChat = () => {
     selectAgent(null);
     clearMessages();
-    setView('home');
+    setView("home");
   };
 
   const handleResumeConversation = async (conv: ConversationSummary) => {
@@ -38,11 +67,14 @@ export default function Sidebar() {
       const agent = agents.find((a) => a.id === conv.agentId);
       if (agent) selectAgent(agent);
       useChatStore.setState((s) => ({
-        messagesByAgent: { ...s.messagesByAgent, [conv.agentId]: full.messages },
+        messagesByAgent: {
+          ...s.messagesByAgent,
+          [conv.agentId]: full.messages,
+        },
         messages: full.messages,
         currentAgentId: conv.agentId,
       }));
-      setView('chat');
+      setView("chat");
     } catch {
       // ignore
     }
@@ -62,129 +94,177 @@ export default function Sidebar() {
     const d = new Date(ts);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
-    if (diff < 86400000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (diff < 604800000) return d.toLocaleDateString([], { weekday: 'short' });
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    if (diff < 86400000)
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (diff < 604800000) return d.toLocaleDateString([], { weekday: "short" });
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
   };
 
   const navItems = [
-    { view: 'home' as const, icon: Home, label: 'Home' },
-    { view: 'analytics' as const, icon: BarChart3, label: 'Analytics' },
-    { view: 'knowledge' as const, icon: BookOpen, label: 'Knowledge' },
-    { view: 'marketplace' as const, icon: Store, label: 'Marketplace' },
+    { view: "home" as const, icon: Home, label: "Home" },
+    { view: "analytics" as const, icon: BarChart3, label: "Analytics" },
+    { view: "knowledge" as const, icon: BookOpen, label: "Knowledge" },
+    { view: "marketplace" as const, icon: Store, label: "Marketplace" },
   ];
 
   return (
-    <div className="w-[260px] h-screen bg-zinc-900 flex flex-col select-none">
-      {/* Logo */}
-      <div className="px-5 pt-5 pb-4">
-        <h1 className="text-[15px] font-semibold tracking-tight text-zinc-100">Nativz Agents</h1>
-        <p className="text-[11px] text-zinc-500 mt-0.5">AI-powered agency tools</p>
-      </div>
-
-      {/* New Chat */}
-      <div className="px-3 pb-1">
-        <button
-          onClick={handleNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 transition-colors duration-150"
-        >
-          <Plus size={15} strokeWidth={2.5} /> New Chat
-        </button>
-      </div>
-
-      {/* Nav */}
-      <div className="px-3 py-1 space-y-0.5">
-        {navItems.map(({ view, icon: Icon, label }) => {
-          const isActive = currentView === view;
-          return (
-            <button
-              key={view}
-              onClick={() => { if (view === 'home') selectAgent(null); setView(view); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[13px] transition-colors duration-150 ${
-                isActive
-                  ? 'text-zinc-100 bg-zinc-800/80'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <Icon size={15} strokeWidth={isActive ? 2 : 1.5} />
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Agents */}
-      <div className="px-3 mt-3">
-        <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium px-3 py-2">Agents</p>
-        <div className="space-y-0.5">
-          {agents.map((agent) => {
-            const isActive = selectedAgent?.id === agent.id && currentView === 'chat';
-            return (
-              <button
-                key={agent.id}
-                onClick={() => { selectAgent(agent); setView('chat'); clearMessages(); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[13px] transition-colors duration-150 ${
-                  isActive
-                    ? 'text-blue-400 bg-blue-500/10'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                }`}
-              >
-                <span className="text-sm flex-shrink-0">{agent.icon}</span>
-                <span className="truncate">{agent.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Conversations */}
-      <div className="flex-1 overflow-y-auto px-3 mt-3">
-        <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium px-3 py-2">Recent</p>
-        {conversations.length === 0 ? (
-          <p className="text-[11px] text-zinc-600 px-3 py-1.5">No conversations yet</p>
-        ) : (
-          <div className="space-y-0.5">
-            {conversations.map((conv) => (
-              <div
-                key={conv.id}
-                className="group flex items-center gap-2 px-3 py-[7px] rounded-lg hover:bg-zinc-800/40 transition-colors duration-150 cursor-pointer"
-                onClick={() => handleResumeConversation(conv)}
-              >
-                <MessageSquare size={12} className="text-zinc-600 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] text-zinc-300 truncate">{conv.title}</p>
-                  <p className="text-[10px] text-zinc-600">{formatTime(conv.updatedAt)}</p>
-                </div>
-                {deleteConfirm === conv.id ? (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); }}
-                    className="text-[9px] text-red-400 font-medium px-1.5 py-0.5 rounded bg-red-500/10"
-                  >
-                    delete?
-                  </button>
-                ) : (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(conv.id); }}
-                    className="p-0.5 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-150"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                )}
-              </div>
-            ))}
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
+            N
           </div>
-        )}
+          <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+            <h1 className="text-sm font-semibold tracking-tight truncate">
+              Nativz Agents
+            </h1>
+            <p className="text-xs text-muted-foreground">AI-powered tools</p>
+          </div>
+        </div>
+      </SidebarHeader>
+
+      <div className="px-3 pb-2 group-data-[collapsible=icon]:px-2">
+        <Button
+          onClick={handleNewChat}
+          variant="outline"
+          className="w-full justify-start gap-2"
+          size="sm"
+        >
+          <Plus size={15} strokeWidth={2.5} />
+          <span className="group-data-[collapsible=icon]:hidden">New Chat</span>
+        </Button>
       </div>
 
-      {/* Bottom */}
-      <div className="px-3 py-3 border-t border-zinc-800/50">
-        <button
-          onClick={toggleSettings}
-          className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[13px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors duration-150"
-        >
-          <Settings size={15} strokeWidth={1.5} /> Settings
-        </button>
-      </div>
-    </div>
+      <SidebarContent>
+        {/* Navigation */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map(({ view, icon: Icon, label }) => {
+                const isActive = currentView === view;
+                return (
+                  <SidebarMenuItem key={view}>
+                    <SidebarMenuButton
+                      isActive={isActive}
+                      onClick={() => {
+                        if (view === "home") selectAgent(null);
+                        setView(view);
+                      }}
+                      tooltip={label}
+                    >
+                      <Icon size={16} />
+                      <span>{label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Agents */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Agents</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {agents.map((agent) => {
+                const isActive =
+                  selectedAgent?.id === agent.id && currentView === "chat";
+                return (
+                  <SidebarMenuItem key={agent.id}>
+                    <SidebarMenuButton
+                      isActive={isActive}
+                      onClick={() => {
+                        selectAgent(agent);
+                        setView("chat");
+                        clearMessages();
+                      }}
+                      tooltip={agent.name}
+                    >
+                      <span className="text-sm shrink-0">{agent.icon}</span>
+                      <span className="truncate">{agent.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Recent Conversations */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Recent</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <ScrollArea className="max-h-[240px]">
+              <SidebarMenu>
+                {conversations.length === 0 ? (
+                  <p className="text-xs text-muted-foreground px-3 py-2 group-data-[collapsible=icon]:hidden">
+                    No conversations yet
+                  </p>
+                ) : (
+                  conversations.map((conv) => (
+                    <SidebarMenuItem key={conv.id}>
+                      <SidebarMenuButton
+                        onClick={() => handleResumeConversation(conv)}
+                        tooltip={conv.title}
+                        className="group/conv"
+                      >
+                        <MessageSquare size={14} className="shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs truncate block">
+                            {conv.title}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block">
+                            {formatTime(conv.updatedAt)}
+                          </span>
+                        </div>
+                        {deleteConfirm === conv.id ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteConversation(conv.id);
+                            }}
+                            className="text-[9px] text-destructive font-medium px-1.5 py-0.5 rounded bg-destructive/10"
+                          >
+                            delete?
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirm(conv.id);
+                            }}
+                            className="p-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover/conv:opacity-100 transition-all"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))
+                )}
+              </SidebarMenu>
+            </ScrollArea>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={toggleSettings} tooltip="Settings">
+              <Settings size={16} />
+              <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+
+      <SidebarRail />
+    </Sidebar>
   );
 }

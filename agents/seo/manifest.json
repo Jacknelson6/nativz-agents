@@ -64,14 +64,6 @@
       ]
     },
     {
-      "name": "fetch",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-server-fetch"
-      ]
-    },
-    {
       "name": "search-console",
       "command": "npx",
       "args": [

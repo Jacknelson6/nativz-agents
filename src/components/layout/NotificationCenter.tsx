@@ -58,7 +58,7 @@ function NotifIcon({ type }: { type: NotificationType }) {
     case 'memory-updated':
       return <Info className="w-4 h-4 text-purple-400 flex-shrink-0" />;
     default:
-      return <Info className="w-4 h-4 text-accent flex-shrink-0" />;
+      return <Info className="w-4 h-4 text-primary flex-shrink-0" />;
   }
 }
 
@@ -72,13 +72,13 @@ function Toast({ notification, onDismiss }: { notification: AppNotification; onD
   }, [notification.id, notification.autoDismissMs, onDismiss]);
 
   return (
-    <div className="flex items-start gap-3 bg-surface border border-border rounded-xl px-4 py-3 shadow-2xl min-w-[300px] max-w-[400px] animate-slide-in">
+    <div className="flex items-start gap-3 bg-card border border-border rounded-xl px-4 py-3 shadow-2xl min-w-[300px] max-w-[400px] animate-slide-in">
       <NotifIcon type={notification.type} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-text truncate">{notification.title}</p>
-        <p className="text-xs text-muted mt-0.5 line-clamp-2">{notification.message}</p>
+        <p className="text-sm font-medium text-foreground truncate">{notification.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.message}</p>
       </div>
-      <button onClick={() => onDismiss(notification.id)} className="p-0.5 text-muted hover:text-text transition flex-shrink-0">
+      <button onClick={() => onDismiss(notification.id)} className="p-0.5 text-muted-foreground hover:text-foreground transition flex-shrink-0">
         <X className="w-3.5 h-3.5" />
       </button>
     </div>
@@ -151,11 +151,11 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
       <div className="relative" ref={panelRef}>
         <button
           onClick={() => setPanelOpen(!panelOpen)}
-          className="relative p-2 rounded-lg text-muted hover:text-text hover:bg-surface transition"
+          className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition"
         >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
@@ -165,15 +165,15 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
         {panelOpen && (
           <div className="absolute right-0 top-full mt-2 w-80 bg-background border border-border rounded-xl shadow-2xl overflow-hidden z-50">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h3 className="text-sm font-semibold text-text">Notifications</h3>
+              <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="text-[10px] text-accent hover:text-accent/80 transition">
+                  <button onClick={markAllRead} className="text-[10px] text-primary hover:text-primary/80 transition">
                     Mark all read
                   </button>
                 )}
                 {notifications.length > 0 && (
-                  <button onClick={clearAll} className="p-1 text-muted hover:text-text transition">
+                  <button onClick={clearAll} className="p-1 text-muted-foreground hover:text-foreground transition">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -183,7 +183,7 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
             <div className="max-h-[400px] overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="py-12 text-center">
-                  <Bell className="w-8 h-8 text-muted mx-auto mb-2 opacity-40" />
+                  <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-40" />
                   <p className="text-xs text-muted">No notifications yet</p>
                 </div>
               ) : (
@@ -191,19 +191,19 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
                   <button
                     key={notif.id}
                     onClick={() => handleNotifClick(notif)}
-                    className={`w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-surface transition border-b border-border/50 ${
+                    className={`w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-card transition border-b border-border/50 ${
                       notif.read ? 'opacity-60' : ''
                     }`}
                   >
                     <NotifIcon type={notif.type} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-text truncate">{notif.title}</p>
-                      <p className="text-[11px] text-muted mt-0.5 line-clamp-2">{notif.message}</p>
-                      <p className="text-[10px] text-muted mt-1">
+                      <p className="text-xs font-medium text-foreground truncate">{notif.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
                         {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
-                    {!notif.read && <div className="w-2 h-2 rounded-full bg-accent mt-1 flex-shrink-0" />}
+                    {!notif.read && <div className="w-2 h-2 rounded-full bg-primary mt-1 flex-shrink-0" />}
                   </button>
                 ))
               )}

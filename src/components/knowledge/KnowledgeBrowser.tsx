@@ -128,7 +128,7 @@ export default function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
             <Database size={16} />
             <h3 className="font-semibold text-sm">Knowledge Base</h3>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted mb-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
             <span>{documents.length} documents</span>
             <span>·</span>
             <span>{totalChunks} chunks</span>
@@ -142,7 +142,7 @@ export default function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search documents..."
-              className="w-full bg-black border border-border rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:border-accent/50"
+              className="w-full bg-background border border-border rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:border-primary/50"
             />
           </div>
         </div>
@@ -154,7 +154,7 @@ export default function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
           onDragLeave={handleDragLeave}
           className={`mx-4 mt-3 border-2 border-dashed rounded-xl p-4 text-center transition-colors ${
             isDragOver
-              ? 'border-accent bg-accent/5'
+              ? 'border-primary bg-primary/5'
               : 'border-border/50 hover:border-border'
           }`}
         >
@@ -172,8 +172,8 @@ export default function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
               onClick={() => setSelectedDoc(doc)}
               className={`w-full text-left p-3 rounded-lg transition-colors group flex items-start gap-2.5 ${
                 selectedDoc?.id === doc.id
-                  ? 'bg-accent/10 border border-accent/20'
-                  : 'hover:bg-white/5 border border-transparent'
+                  ? 'bg-primary/10 border border-primary/20'
+                  : 'hover:bg-muted/30 border border-transparent'
               }`}
             >
               <File size={14} className="shrink-0 mt-0.5 text-muted" />
@@ -182,7 +182,7 @@ export default function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
                   <span className="text-sm font-medium truncate">{doc.name}</span>
                   {statusIcon(doc.status)}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                   <span>{doc.chunkCount} chunks</span>
                   <span>·</span>
                   <span>{formatSize(doc.sizeBytes)}</span>
@@ -201,7 +201,7 @@ export default function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
           ))}
 
           {filteredDocs.length === 0 && (
-            <div className="text-center py-8 text-muted text-xs">
+            <div className="text-center py-8 text-muted-foreground text-xs">
               {searchQuery ? 'No documents match your search.' : 'No documents indexed yet.'}
             </div>
           )}
@@ -226,11 +226,11 @@ export default function KnowledgeBrowser({ agentId }: KnowledgeBrowserProps) {
             </div>
             <div className="flex-1 overflow-y-auto p-6">
               {selectedDoc.preview ? (
-                <pre className="text-sm text-muted whitespace-pre-wrap font-mono leading-relaxed">
+                <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
                   {selectedDoc.preview}
                 </pre>
               ) : (
-                <div className="text-center py-12 text-muted text-sm">
+                <div className="text-center py-12 text-muted-foreground text-sm">
                   <FileText size={32} className="mx-auto mb-3 opacity-30" />
                   Preview not available for this document.
                 </div>
