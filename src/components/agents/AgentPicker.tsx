@@ -1,17 +1,14 @@
 import { useAgentStore } from '../../stores/agentStore';
 import { useAppStore } from '../../stores/appStore';
-import { useChatStore } from '../../stores/chatStore';
 import AgentCard from './AgentCard';
 import type { Agent } from '../../lib/types';
 
 export default function AgentPicker() {
   const { agents, selectAgent } = useAgentStore();
   const { setView } = useAppStore();
-  const { clearMessages } = useChatStore();
 
   const handleSelect = (agent: Agent) => {
     selectAgent(agent);
-    clearMessages();
     setView('chat');
   };
 

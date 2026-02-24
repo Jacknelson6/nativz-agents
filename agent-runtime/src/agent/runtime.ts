@@ -35,8 +35,8 @@ export class AgentRuntime {
   private conversationSummary = "";
   private agentMessages: AgentMessage[] = [];
 
-  constructor() {
-    this.client = new ClaudeClient();
+  constructor(apiKey?: string) {
+    this.client = new ClaudeClient(apiKey);
     this.skillRegistry = new SkillRegistry();
     this.skillExecutor = new SkillExecutor(this.skillRegistry);
     this.knowledgeSearch = new KnowledgeSearch();
@@ -48,6 +48,10 @@ export class AgentRuntime {
     for (const skill of builtinSkills) {
       this.skillRegistry.register(skill);
     }
+  }
+
+  getManifest(): AgentManifest | null {
+    return this.manifest;
   }
 
   async loadAgent(manifestPath: string): Promise<AgentManifest> {

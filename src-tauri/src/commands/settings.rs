@@ -1,6 +1,8 @@
+use crate::sidecar::SidecarManager;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use tauri::Manager;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -41,8 +43,23 @@ pub fn get_settings(app: tauri::AppHandle) -> AppSettings {
 }
 
 #[tauri::command]
-pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
+pub fn save_settings(
+    app: tauri::AppHandle,
+    settings: AppSettings,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<(), String> {
     let path = settings_path(&app);
     let data = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    fs::write(&path, data).map_err(|e| e.to_string())
+    fs::write(&path, data).map_err(|e| e.to_string())?;
+
+    // Push API key to sidecar if it changed
+    if !settings.api_key.is_empty() {
+        if let Ok(mut mgr) = sidecar.lock() {
+            let _ = mgr.send_request("set_api_key", serde_json::json!({
+                "apiKey": settings.api_key
+            }));
+        }
+    }
+
+    Ok(())
 }

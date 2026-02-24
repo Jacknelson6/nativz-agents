@@ -5,31 +5,52 @@ import { listAgents } from "./agent/loader.js";
 import * as path from "node:path";
 
 const router = new RpcRouter();
-const runtime = new AgentRuntime();
 let agentsDir = path.resolve(__dirname, "../../agents");
+let apiKey: string | undefined;
+
+// Track per-agent runtimes so we can load on demand
+const runtimes = new Map<string, AgentRuntime>();
+
+async function getOrLoadRuntime(agentId: string): Promise<AgentRuntime> {
+  let rt = runtimes.get(agentId);
+  if (rt) return rt;
+  rt = new AgentRuntime(apiKey);
+  const manifestPath = path.join(agentsDir, agentId, "manifest.json");
+  await rt.loadAgent(manifestPath);
+  runtimes.set(agentId, rt);
+  return rt;
+}
 
 router.register("initialize", async (params) => {
-  // Accept agentsDir override from sidecar
   if (params.agentsDir) {
     agentsDir = params.agentsDir as string;
+  }
+  if (params.apiKey) {
+    apiKey = params.apiKey as string;
   }
   const agentId = params.agentId as string | undefined;
   if (!agentId) {
     return { status: "ready", message: "Runtime initialized.", agentsDir };
   }
-  const manifestPath = path.join(agentsDir, agentId, "manifest.json");
-  const manifest = await runtime.loadAgent(manifestPath);
+  const rt = await getOrLoadRuntime(agentId);
+  const manifest = rt.getManifest();
   return {
     status: "ready",
-    agent: { id: manifest.id, name: manifest.name, description: manifest.description },
+    agent: manifest ? { id: manifest.id, name: manifest.name, description: manifest.description } : null,
   };
 });
 
 router.register("send_message", async (params) => {
+  const agentId = params.agentId as string;
   const message = params.message as string;
   const userId = (params.userId as string) ?? "default";
+  if (!agentId) throw new Error("agentId is required");
   if (!message) throw new Error("message is required");
-  const response = await runtime.sendMessage(message, userId);
+  if (!apiKey && !process.env.ANTHROPIC_API_KEY) {
+    throw new Error("API key not configured. Please set your API key in Settings.");
+  }
+  const rt = await getOrLoadRuntime(agentId);
+  const response = await rt.sendMessage(message, userId);
   return { response };
 });
 
@@ -45,12 +66,29 @@ router.register("list_agents", async () => {
   };
 });
 
-router.register("get_history", async () => {
-  return { messages: runtime.getHistory() };
+router.register("get_history", async (params) => {
+  const agentId = params.agentId as string | undefined;
+  if (agentId && runtimes.has(agentId)) {
+    return { messages: runtimes.get(agentId)!.getHistory() };
+  }
+  return { messages: [] };
+});
+
+router.register("set_api_key", async (params) => {
+  apiKey = params.apiKey as string;
+  // Clear existing runtimes so they get recreated with new key
+  for (const rt of runtimes.values()) {
+    await rt.shutdown();
+  }
+  runtimes.clear();
+  return { status: "ok" };
 });
 
 router.register("shutdown", async () => {
-  await runtime.shutdown();
+  for (const rt of runtimes.values()) {
+    await rt.shutdown();
+  }
+  runtimes.clear();
   setTimeout(() => process.exit(0), 100);
   return { status: "shutting_down" };
 });

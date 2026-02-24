@@ -35,16 +35,21 @@ pub fn run() {
             if let Err(e) = mgr.start(app.handle().clone()) {
                 eprintln!("Failed to start sidecar: {}", e);
             } else {
-                // Send initialize with agents directory path
+                // Read API key from settings
+                let settings = commands::settings::get_settings(app.handle().clone());
                 let agents_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                     .parent()
                     .unwrap()
                     .join("agents")
                     .to_string_lossy()
                     .to_string();
-                if let Err(e) = mgr.send_request("initialize", serde_json::json!({
+                let mut init_params = serde_json::json!({
                     "agentsDir": agents_dir
-                })) {
+                });
+                if !settings.api_key.is_empty() {
+                    init_params["apiKey"] = serde_json::json!(settings.api_key);
+                }
+                if let Err(e) = mgr.send_request("initialize", init_params) {
                     eprintln!("Failed to send initialize: {}", e);
                 }
             }

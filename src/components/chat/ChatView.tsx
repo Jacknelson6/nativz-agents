@@ -7,8 +7,12 @@ import { Loader2 } from 'lucide-react';
 
 export default function ChatView() {
   const { selectedAgent } = useAgentStore();
-  const { messages, isStreaming, sendMessage } = useChatStore();
+  const { messages, isStreaming, sendMessage, setAgent } = useChatStore();
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedAgent) setAgent(selectedAgent.id);
+  }, [selectedAgent?.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
