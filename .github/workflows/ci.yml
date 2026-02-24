@@ -35,10 +35,13 @@ jobs:
         run: cd agent-runtime && npx tsc --noEmit
 
       - name: TypeScript check (frontend)
-        run: npm run build
+        run: npx tsc --noEmit
+
+      - name: Vite build
+        run: npx vite build
 
       - name: Rust check
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
-      - name: Smoke tests
-        run: ./scripts/test-agents.sh
+      - name: Tests
+        run: cd agent-runtime && node --test tests/runtime.test.ts
