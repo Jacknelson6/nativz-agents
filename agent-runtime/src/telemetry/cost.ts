@@ -33,13 +33,13 @@ const DEFAULT_PRICING: Record<string, ProviderConfig> = {
     models: {
       "claude-opus-4-0-20250514": { inputPerMillion: 15, outputPerMillion: 75 },
       "claude-sonnet-4-20250514": { inputPerMillion: 3, outputPerMillion: 15 },
-      "claude-haiku-3-5-20241022": { inputPerMillion: 0.8, outputPerMillion: 4 },
+      "claude-haiku-4-5-20251001": { inputPerMillion: 0.8, outputPerMillion: 4 },
     },
   },
   openai: {
     subscription: false,
     models: {
-      "gpt-4.1": { inputPerMillion: 2, outputPerMillion: 8 },
+      "gpt-4o": { inputPerMillion: 2.5, outputPerMillion: 10 },
     },
   },
   google: {

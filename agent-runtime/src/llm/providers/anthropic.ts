@@ -37,7 +37,7 @@ const ANTHROPIC_MODELS: ModelInfo[] = [
     supportsVision: true,
   },
   {
-    id: "claude-haiku-4-5-20241022",
+    id: "claude-haiku-4-5-20251001",
     name: "Claude Haiku 4.5",
     contextWindow: 200000,
     maxOutputTokens: 8192,
@@ -202,7 +202,7 @@ export class AnthropicProvider implements LlmProvider {
     const start = Date.now();
     try {
       await this.client.messages.create({
-        model: "claude-haiku-4-5-20241022",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1,
         messages: [{ role: "user", content: "hi" }],
       });

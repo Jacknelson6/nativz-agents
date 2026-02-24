@@ -93,7 +93,7 @@ export async function loadManifest(manifestPath: string): Promise<AgentManifest>
     };
   }
   if (!model) {
-    model = { primary: "claude-sonnet-4-20250514", fast: "claude-haiku-4-5-20241022" };
+    model = { primary: "claude-sonnet-4-20250514", fast: "claude-haiku-4-5-20251001" };
   }
 
   return {

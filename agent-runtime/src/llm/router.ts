@@ -12,7 +12,7 @@ export interface ModelConfig {
 
 const DEFAULT_CONFIG: ModelConfig = {
   primary: "claude-opus-4-20250514",
-  fast: "claude-haiku-4-5-20241022",
+  fast: "claude-haiku-4-5-20251001",
 };
 
 /** Backward-compatible: simple model selection */
@@ -127,7 +127,7 @@ const TIER_MAP: Record<TaskComplexity, ProviderPreference[]> = {
     { provider: "ollama", model: "qwen2.5-coder:7b", priority: 4 },
   ],
   simple: [
-    { provider: "anthropic", model: "claude-haiku-4-5-20241022", priority: 1 },
+    { provider: "anthropic", model: "claude-haiku-4-5-20251001", priority: 1 },
     { provider: "openai", model: "gpt-4.1-mini", priority: 2 },
     { provider: "gemini", model: "gemini-2.5-flash-preview-05-20", priority: 3 },
     { provider: "ollama", model: "llama3.2:3b", priority: 4 },

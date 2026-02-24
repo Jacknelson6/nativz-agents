@@ -31,7 +31,7 @@ export class ConversationSummarizer {
       .join("\n");
 
     const response = await this.client.call({
-      model: "claude-haiku-4-5-20241022",
+      model: "claude-haiku-4-5-20251001",
       system: "Summarize this conversation concisely, preserving key facts, decisions, and context needed to continue the conversation. Be thorough but brief.",
       messages: [{ role: "user", content: conversationText }],
       maxTokens: 1000,
