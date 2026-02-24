@@ -1,0 +1,3 @@
+[submodule "skills/context-engineering"]
+	path = skills/context-engineering
+	url = https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering.git
