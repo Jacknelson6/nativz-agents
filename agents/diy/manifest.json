@@ -22,7 +22,7 @@
   "knowledge": [],
   "systemPrompt": "You are a helpful assistant. The user will provide custom instructions and knowledge to define your role, expertise, and behavior.\n\nUntil custom instructions are provided, you will:\n- Answer questions helpfully and accurately\n- Ask clarifying questions when requests are ambiguous\n- Use available tools when they would help accomplish the task\n- Be concise but thorough\n- Acknowledge the limits of your knowledge\n\nWhen the user provides custom instructions (via knowledge files or direct messages), adopt those instructions fully and operate within that defined role. Custom instructions override these defaults.",
   "id": "diy",
-  "icon": "🛠️",
+  "icon": "\ud83d\udee0\ufe0f",
   "model": {
     "primary": "claude-opus-4",
     "fast": "claude-haiku-4-5"
@@ -33,5 +33,31 @@
       "*"
     ]
   },
-  "mcpServers": []
+  "mcpServers": [
+    {
+      "name": "filesystem",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "./"
+      ]
+    },
+    {
+      "name": "memory",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    {
+      "name": "fetch",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-server-fetch"
+      ]
+    }
+  ]
 }

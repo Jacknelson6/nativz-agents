@@ -23,3 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 .gitnexus
+
+# Build artifacts
+target/
+
+# Database
+*.db
+
+# Environment
+.env
+.env.*
