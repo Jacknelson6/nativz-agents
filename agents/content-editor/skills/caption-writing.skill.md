@@ -1,82 +1,120 @@
 ---
-name: Caption Writing
-description: Write platform-optimized captions for social media posts including hooks, CTAs, hashtags, and tone matching for Instagram, TikTok, YouTube, LinkedIn, X/Twitter, and Facebook.
-triggers:
-  - "write a caption"
-  - "caption for this post"
-  - "write copy for"
-  - "social media copy"
-  - "post caption"
-  - "write captions"
-tools_required:
-  - file-write
-  - web-search
+name: caption-writing
+description: Platform-optimized social media caption writing with hooks, CTAs, and hashtag strategy
+triggers: [caption, copy, post, social copy, write caption, instagram caption, tiktok caption, social media copy]
+tools_required: [web-search, file-write]
 ---
 
-# Caption Writing Workflow
+# Caption Writing
 
-## Step 1: Context Gathering
-- Check working memory for client brand voice, content pillars, and past caption styles
-- Confirm: platform, content type (video/image/carousel), topic, objective (engagement/traffic/conversions), target audience
-- Review the visual content being captioned — the caption must complement, not repeat, the visual
+When this skill activates, you are writing social media captions. Follow this workflow for consistent, high-quality output.
 
-## Step 2: Platform-Specific Formatting
+## Phase 1: Context Gathering
 
-**Instagram:**
-- First line = hook (visible before "...more"). Must create curiosity or deliver immediate value.
-- Body: storytelling, tips, or context. 150-300 words for engagement posts, shorter for Reels.
-- CTA: "Save this for later", "Tag someone who needs this", "Drop a 🔥 if you agree", "Link in bio"
-- Hashtags: 3-5 relevant hashtags at end of caption or first comment
-- Emoji usage: moderate, brand-appropriate, used as visual breaks
+Before writing any caption, confirm:
+1. **Platform** — TikTok, Instagram, YouTube, LinkedIn, X? (Each has different conventions)
+2. **Content type** — What does the video/image show? What's the key message?
+3. **Objective** — Engagement (comments), reach (shares), conversion (link clicks), saves?
+4. **Brand voice** — Check structured memory for the client's tone, vocabulary, emoji usage
+5. **Target audience** — Who is this speaking to? What language resonates with them?
+6. **CTA** — What action should the viewer take?
 
-**TikTok:**
-- Short and punchy: 1-2 sentences max (150 chars ideal)
-- Conversational and casual tone — match TikTok's native voice
-- Use questions or controversial takes to drive comments
-- Hashtags: 3-5, mix trending + niche topic tags
-- No heavy CTA — TikTok penalizes overly promotional captions
+## Phase 2: Caption Structure by Platform
 
-**YouTube (description):**
-- First 2 lines: compelling summary with primary keyword (visible above "Show more")
-- Timestamps for chapters (if long-form)
-- Relevant links, social handles, credits
-- 3 hashtags max (appear above title)
-- Keywords naturally woven into first paragraph for search
+### TikTok
+- **Length:** 1-3 lines (150 chars is the visible preview before "more")
+- **Tone:** Casual, conversational, native to the platform
+- **Hook:** Question, bold statement, or controversy that drives comments
+- **CTA:** Comment-driving ("Would you try this?", "Tag someone who needs this", "POV:")
+- **Emoji:** 0-2 max, used for emphasis not decoration
+- **Hashtags:** 3-5 after caption text, mix niche + broad
+- **Example formats:**
+  - "POV: [relatable scenario]"
+  - "The [thing] nobody talks about 👀"
+  - "I tested [thing] for 30 days. Here's what happened"
+  - "[Bold claim]. Let me explain."
 
-**LinkedIn:**
-- Professional but human. Lead with a hook line (bold statement, question, or statistic).
-- Use line breaks for readability (1-2 sentences per paragraph)
-- 1,300 chars ideal (before "see more" cutoff on mobile is ~210 chars)
-- Storytelling works: personal experience → lesson → takeaway
-- CTA: "What's your experience with this?", "Agree or disagree?"
-- No hashtags or 3 max
+### Instagram
+- **Length:** First line is the hook (visible before "...more"). Total can be up to 2,200 chars.
+- **Tone:** Slightly more polished than TikTok, but still human
+- **Hook:** First line must compel the tap on "more" — curiosity gap, bold statement, question
+- **Body:** Story-driven, value-packed, or educational. Use line breaks for readability.
+- **CTA:** "Save this for later 📌", "Share with a friend who needs this", "Drop a 🔥 if you agree", "Link in bio"
+- **Hashtags:** 3-5, either at the end of caption or in first comment
+- **Example formats:**
+  - Hook line → Story/value → CTA → Hashtags
+  - "Stop doing [X]. Start doing [Y]. Here's why ↓"
+  - "3 things I wish I knew about [topic]:"
 
-**X/Twitter:**
-- 280 chars max. Every word earns its place.
-- Hot takes, concise insights, or questions that invite QRTs
-- Thread format for longer content (hook tweet → value → CTA)
-- 1-2 hashtags max, only if genuinely relevant
+### YouTube (Description)
+- **First 2 lines:** Compelling summary with target keywords (visible before "Show more")
+- **Timestamps:** For chapters in long-form
+- **Links:** Resources mentioned, social profiles, related videos
+- **Hashtags:** 3 max (appear above the title)
+- **Keywords:** Natural inclusion for search discovery
 
-**Facebook:**
-- Similar to Instagram but slightly more conversational/community-oriented
-- 1-2 paragraphs. Questions drive comments.
-- Link posts: write compelling preview text since Facebook de-emphasizes link reach
+### LinkedIn
+- **Length:** First 2-3 lines are the hook (visible before "see more")
+- **Tone:** Professional but personable, thought leadership
+- **Format:** Short paragraphs (1-2 sentences each), lots of white space
+- **CTA:** "Agree? Disagree? Drop your take below.", "Repost if this resonates ♻️"
 
-## Step 3: Hook Frameworks
-Apply proven hook formulas:
-- **Curiosity gap:** "I stopped doing X and here's what happened"
-- **Contrarian:** "Unpopular opinion: [bold statement]"
-- **List/Number:** "3 things I wish I knew about..."
-- **Direct address:** "If you're struggling with X, read this"
-- **Story opener:** "Last week, a client told me..."
-- **Result/Proof:** "This strategy generated 10K followers in 30 days"
+## Phase 3: Writing Process
 
-## Step 4: Quality Review
-- [ ] Hook is strong enough to stop the scroll / expand the caption
-- [ ] Tone matches client brand voice (check memory)
-- [ ] Caption complements the visual — doesn't just describe it
-- [ ] CTA is clear and appropriate for the objective
-- [ ] Hashtags are relevant and correctly counted for the platform
-- [ ] No spelling or grammar errors
-- [ ] Caption length is appropriate for the platform
-- [ ] Emoji usage is intentional, not excessive
+### Step 1: Write 3 Hook Options
+Always provide at least 3 hook variations:
+- **Curiosity hook** — Creates an information gap the reader needs to close
+- **Bold/contrarian hook** — Challenges conventional wisdom
+- **Relatable hook** — "If you've ever [common experience]..."
+
+### Step 2: Write the Body
+- Keep sentences short and punchy
+- One idea per line
+- Use line breaks generously
+- Front-load value — don't bury the lead
+- Match the client's brand voice exactly
+
+### Step 3: Add the CTA
+- Make it specific and easy to act on
+- Align CTA with the content objective
+- Don't use more than one CTA per caption
+
+### Step 4: Select Hashtags
+- Research relevant hashtags using `web-search` if needed
+- 1 broad + 2-3 niche + 1 branded (if applicable)
+- Check that hashtags aren't banned or problematic
+
+## Phase 4: Output Format
+
+Deliver captions in this format:
+
+```
+## [Platform] Caption
+
+**Hook Option A:**
+[Caption text]
+
+**Hook Option B:**
+[Caption text]
+
+**Hook Option C:**
+[Caption text]
+
+**Hashtags:** #tag1 #tag2 #tag3 #tag4
+
+**Notes:** [Any additional context — best posting time, content pairing suggestions]
+```
+
+When writing for multiple platforms, adapt the SAME core message to each platform's conventions. Don't just copy-paste across platforms.
+
+## Phase 5: Quality Check
+
+Before delivering:
+- [ ] Hook is compelling — would YOU stop scrolling?
+- [ ] Tone matches the client's brand voice
+- [ ] CTA is clear and aligned with objective
+- [ ] Length is appropriate for the platform
+- [ ] No typos or grammatical errors
+- [ ] Hashtags are relevant and current
+- [ ] Caption makes sense even without seeing the visual content
+- [ ] Store any new brand voice observations in structured memory
