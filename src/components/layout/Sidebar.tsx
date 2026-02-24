@@ -1,7 +1,7 @@
 import { useAgentStore } from '../../stores/agentStore';
 import { useAppStore } from '../../stores/appStore';
 import { useChatStore } from '../../stores/chatStore';
-import { Settings, Home, MessageSquare } from 'lucide-react';
+import { Settings, Home } from 'lucide-react';
 
 export default function Sidebar() {
   const { agents, selectedAgent, selectAgent } = useAgentStore();
