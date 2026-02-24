@@ -1,51 +1,59 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useEffect, useState } from 'react';
+import { useAppStore } from './stores/appStore';
+import { useAgentStore } from './stores/agentStore';
+import Layout from './components/layout/Layout';
+import AgentPicker from './components/agents/AgentPicker';
+import ChatView from './components/chat/ChatView';
+import Welcome from './components/onboarding/Welcome';
+import ApiKeySetup from './components/onboarding/ApiKeySetup';
+import RoleSelect from './components/onboarding/RoleSelect';
+import Settings from './components/settings/Settings';
+import type { AppSettings } from './lib/types';
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+function Onboarding() {
+  const [step, setStep] = useState(0);
+  const { updateSettings, setView } = useAppStore();
+  const { loadAgents } = useAgentStore();
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  const finishOnboarding = async (role: AppSettings['role']) => {
+    await updateSettings({ role, onboardingComplete: true });
+    await loadAgents();
+    setView('home');
+  };
+
+  if (step === 0) return <Welcome onNext={() => setStep(1)} />;
+  if (step === 1) return <ApiKeySetup onNext={(key) => { if (key) updateSettings({ apiKey: key }); setStep(2); }} />;
+  return <RoleSelect onSelect={finishOnboarding} />;
+}
+
+export default function App() {
+  const { currentView, settingsOpen, loadSettings, loaded } = useAppStore();
+  const { loadAgents } = useAgentStore();
+
+  useEffect(() => {
+    loadSettings().then(() => loadAgents());
+  }, []);
+
+  if (!loaded) {
+    return <div className="flex items-center justify-center h-screen bg-black text-muted text-sm">Loading...</div>;
+  }
+
+  if (currentView === 'onboarding') {
+    return (
+      <>
+        <Onboarding />
+        {settingsOpen && <Settings />}
+      </>
+    );
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <>
+      <Layout>
+        {currentView === 'home' && <AgentPicker />}
+        {currentView === 'chat' && <ChatView />}
+      </Layout>
+      {settingsOpen && <Settings />}
+    </>
   );
 }
-
-export default App;
