@@ -41,7 +41,7 @@ export default function ChatView() {
           {isStreaming && (
             <div className="flex items-center gap-2 text-muted text-sm mb-4">
               <Loader2 size={14} className="animate-spin" />
-              <span>Thinking...</span>
+              <span>Streaming...</span>
             </div>
           )}
           <div ref={bottomRef} />

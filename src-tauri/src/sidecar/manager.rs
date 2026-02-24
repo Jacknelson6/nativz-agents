@@ -75,18 +75,31 @@ impl SidecarManager {
                     continue;
                 }
 
-                // Try to parse as JSON-RPC response
-                if let Ok(resp) = serde_json::from_str::<JsonRpcResponse>(&line) {
-                    let mut pending = pending.lock().unwrap();
-                    if let Some(tx) = pending.remove(&resp.id) {
-                        if let Some(err) = resp.error {
-                            let _ = tx.send(Err(err.to_string()));
-                        } else {
-                            let _ = tx.send(Ok(resp.result.unwrap_or(Value::Null)));
+                // Try to parse as JSON
+                if let Ok(parsed) = serde_json::from_str::<Value>(&line) {
+                    // Check if it's a JSON-RPC notification (no "id" field = notification)
+                    if parsed.get("method").and_then(|m| m.as_str()) == Some("stream_chunk")
+                        && parsed.get("id").is_none()
+                    {
+                        // Emit as Tauri event for the frontend
+                        if let Some(params) = parsed.get("params") {
+                            let _ = app.emit("agent-stream", params.clone());
                         }
+                    } else if let Ok(resp) = serde_json::from_value::<JsonRpcResponse>(parsed.clone()) {
+                        // It's a JSON-RPC response with an id
+                        let mut pending = pending.lock().unwrap();
+                        if let Some(tx) = pending.remove(&resp.id) {
+                            if let Some(err) = resp.error {
+                                let _ = tx.send(Err(err.to_string()));
+                            } else {
+                                let _ = tx.send(Ok(resp.result.unwrap_or(Value::Null)));
+                            }
+                        }
+                    } else {
+                        let _ = app.emit("sidecar-output", &line);
                     }
                 } else {
-                    // Might be a streaming event or log line — emit as event
+                    // Not JSON — log line
                     let _ = app.emit("sidecar-output", &line);
                 }
             }

@@ -1,5 +1,5 @@
 import type { MessageParam, ContentBlock } from "@anthropic-ai/sdk/resources/messages.js";
-import { ClaudeClient, type LlmResponse } from "../llm/client.js";
+import { ClaudeClient, type LlmResponse, type StreamCallbacks } from "../llm/client.js";
 import { selectModel, classifyComplexity, type ModelConfig } from "../llm/router.js";
 import { SkillRegistry } from "../skills/registry.js";
 import { SkillExecutor } from "../skills/executor.js";
@@ -89,7 +89,7 @@ export class AgentRuntime {
   async sendMessage(
     userMessage: string,
     userId = "default",
-    onToken?: (token: string) => void
+    onStreamNotify?: (type: string, data: Record<string, unknown>) => void
   ): Promise<string> {
     if (!this.manifest) throw new Error("No agent loaded");
 
@@ -132,13 +132,32 @@ export class AgentRuntime {
     while (loopCount < MAX_TOOL_LOOPS) {
       loopCount++;
 
-      const response = await this.client.call({
-        model,
-        system: ctx.system,
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-        maxTokens: this.manifest.guardrails.maxTokensPerTurn,
-      });
+      const streamCallbacks: StreamCallbacks | undefined = onStreamNotify
+        ? {
+            onTextDelta: (text) => onStreamNotify("text_delta", { text }),
+            onToolUseStart: (name, id) => onStreamNotify("tool_use_start", { name, toolUseId: id }),
+            onMessageDone: (fullText) => onStreamNotify("message_done", { fullText }),
+          }
+        : undefined;
+
+      const response = onStreamNotify
+        ? await this.client.streamCall(
+            {
+              model,
+              system: ctx.system,
+              messages,
+              tools: tools.length > 0 ? tools : undefined,
+              maxTokens: this.manifest.guardrails.maxTokensPerTurn,
+            },
+            streamCallbacks
+          )
+        : await this.client.call({
+            model,
+            system: ctx.system,
+            messages,
+            tools: tools.length > 0 ? tools : undefined,
+            maxTokens: this.manifest.guardrails.maxTokensPerTurn,
+          });
 
       // Check for tool use
       const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");

@@ -33,10 +33,19 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   return invoke('save_settings', { settings });
 }
 
-export function onStreamChunk(callback: (chunk: string) => void) {
-  return listen<string>('agent-stream-chunk', (event) => {
-    callback(event.payload);
-  });
+export interface StreamEvent {
+  requestId: string;
+  agentId: string;
+  type: 'text_delta' | 'tool_use_start' | 'tool_use_end' | 'message_done';
+  text?: string;
+  name?: string;
+  toolUseId?: string;
+  result?: string;
+  fullText?: string;
+}
+
+export function onAgentStream(callback: (event: StreamEvent) => void) {
+  return listen<StreamEvent>('agent-stream', (e) => callback(e.payload));
 }
 
 export function onSidecarOutput(callback: (line: string) => void) {

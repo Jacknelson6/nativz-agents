@@ -40,17 +40,26 @@ router.register("initialize", async (params) => {
   };
 });
 
+// Helper to emit a JSON-RPC notification (no id = notification)
+function emitNotification(method: string, params: Record<string, unknown>): void {
+  const notification = JSON.stringify({ jsonrpc: "2.0", method, params });
+  process.stdout.write(notification + "\n");
+}
+
 router.register("send_message", async (params) => {
   const agentId = params.agentId as string;
   const message = params.message as string;
   const userId = (params.userId as string) ?? "default";
+  const requestId = params.requestId as string | undefined ?? crypto.randomUUID();
   if (!agentId) throw new Error("agentId is required");
   if (!message) throw new Error("message is required");
   if (!apiKey && !process.env.ANTHROPIC_API_KEY) {
     throw new Error("API key not configured. Please set your API key in Settings.");
   }
   const rt = await getOrLoadRuntime(agentId);
-  const response = await rt.sendMessage(message, userId);
+  const response = await rt.sendMessage(message, userId, (type, data) => {
+    emitNotification("stream_chunk", { requestId, agentId, type, ...data });
+  });
   return { response };
 });
 
