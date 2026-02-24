@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAnalyticsStore } from '../../stores/analyticsStore';
-import { BarChart3, DollarSign, Zap, TrendingDown } from 'lucide-react';
+import { BarChart3, DollarSign, Zap } from 'lucide-react';
 
 export default function Dashboard() {
   const { usageStats, costStats, loading, refreshStats } = useAnalyticsStore();
@@ -28,9 +28,16 @@ export default function Dashboard() {
     return `$${n.toFixed(2)}`;
   };
 
-  // Token usage bar chart
-  const dailyData = usageStats?.daily ?? [];
-  const maxTokens = Math.max(...dailyData.map((d) => d.totalTokens), 1);
+  // Convert grouped stats to records for breakdown cards
+  const byAgentRecord: Record<string, number> = {};
+  for (const entry of usageStats?.byAgent ?? []) {
+    byAgentRecord[entry.group] = entry.totalTokens;
+  }
+  const byModelRecord: Record<string, number> = {};
+  for (const entry of usageStats?.byModel ?? []) {
+    byModelRecord[entry.group] = entry.totalTokens;
+  }
+  const totalTokens = usageStats?.monthly?.totalTokens ?? 0;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -51,127 +58,81 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-3">
         <StatCard
           icon={<Zap size={14} />}
-          label="Total Tokens"
-          value={formatNumber(usageStats?.totalTokens ?? 0)}
+          label="Monthly Tokens"
+          value={formatNumber(totalTokens)}
+        />
+        <StatCard
+          icon={<DollarSign size={14} />}
+          label="Today's Cost"
+          value={formatCurrency(costStats?.todayCost ?? 0)}
         />
         <StatCard
           icon={<DollarSign size={14} />}
           label="Monthly Cost"
-          value={formatCurrency(costStats?.monthlyCost ?? 0)}
-        />
-        <StatCard
-          icon={<DollarSign size={14} />}
-          label="Total Cost"
-          value={formatCurrency(costStats?.totalCost ?? 0)}
+          value={formatCurrency(costStats?.monthCost ?? 0)}
         />
         <StatCard
           icon={<TrendingDown size={14} />}
-          label="Subscription Savings"
-          value={formatCurrency(costStats?.subscriptionSavings ?? 0)}
-          accent
+          label="Budget Status"
+          value={costStats?.withinBudget ? 'On Track' : 'Over Budget'}
+          accent={costStats?.withinBudget}
         />
       </div>
 
-      {/* Token Usage Chart */}
+      {/* Token Usage Summary */}
       <div className="bg-card border border-border rounded-xl p-5">
-        <h3 className="text-sm font-medium mb-4">Daily Token Usage</h3>
-        {dailyData.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-8">No usage data yet</p>
-        ) : (
-          <div className="flex items-end gap-1 h-40">
-            {dailyData.slice(-30).map((day) => {
-              const heightPct = (day.totalTokens / maxTokens) * 100;
-              const inputPct = (day.inputTokens / (day.totalTokens || 1)) * 100;
-              return (
-                <div
-                  key={day.date}
-                  className="flex-1 flex flex-col items-center gap-1 group relative"
-                >
-                  <div
-                    className="w-full rounded-t relative overflow-hidden cursor-pointer"
-                    style={{ height: `${Math.max(heightPct, 2)}%` }}
-                  >
-                    <div
-                      className="absolute bottom-0 w-full bg-primary/60"
-                      style={{ height: `${inputPct}%` }}
-                    />
-                    <div
-                      className="absolute top-0 w-full bg-primary"
-                      style={{ height: `${100 - inputPct}%` }}
-                    />
-                  </div>
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full mb-2 hidden group-hover:block bg-background border border-border rounded-lg px-2 py-1 text-[10px] whitespace-nowrap z-10">
-                    <p className="font-medium">{day.date}</p>
-                    <p className="text-muted-foreground">In: {formatNumber(day.inputTokens)}</p>
-                    <p className="text-muted-foreground">Out: {formatNumber(day.outputTokens)}</p>
-                  </div>
-                </div>
-              );
-            })}
+        <h3 className="text-sm font-medium mb-4">Token Usage</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Today</div>
+            <div className="text-lg font-semibold">{formatNumber(usageStats?.daily?.totalTokens ?? 0)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              In: {formatNumber(usageStats?.daily?.inputTokens ?? 0)} · Out: {formatNumber(usageStats?.daily?.outputTokens ?? 0)}
+            </div>
           </div>
-        )}
-        <div className="flex items-center gap-4 mt-3 text-[10px] text-muted">
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-primary rounded-sm" /> Output
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-primary/60 rounded-sm" /> Input
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">This Month</div>
+            <div className="text-lg font-semibold">{formatNumber(usageStats?.monthly?.totalTokens ?? 0)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              In: {formatNumber(usageStats?.monthly?.inputTokens ?? 0)} · Out: {formatNumber(usageStats?.monthly?.outputTokens ?? 0)}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Breakdowns */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <BreakdownCard
           title="By Agent"
-          data={usageStats?.byAgent ?? {}}
-          total={usageStats?.totalTokens ?? 0}
+          data={byAgentRecord}
+          total={totalTokens}
           formatter={formatNumber}
         />
         <BreakdownCard
           title="By Model"
-          data={usageStats?.byModel ?? {}}
-          total={usageStats?.totalTokens ?? 0}
+          data={byModelRecord}
+          total={totalTokens}
           formatter={formatNumber}
-        />
-        <BreakdownCard
-          title="Cost by Provider"
-          data={costStats?.byProvider ?? {}}
-          total={costStats?.totalCost ?? 0}
-          formatter={formatCurrency}
         />
       </div>
 
-      {/* Daily Cost */}
-      {costStats && Object.keys(costStats.dailyCost).length > 0 && (
+      {/* Budget Info */}
+      {costStats && (
         <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="text-sm font-medium mb-3">Daily Costs</h3>
-          <div className="space-y-1.5">
-            {Object.entries(costStats.dailyCost)
-              .sort(([a], [b]) => b.localeCompare(a))
-              .slice(0, 14)
-              .map(([date, cost]) => {
-                const maxDailyCost = Math.max(
-                  ...Object.values(costStats.dailyCost),
-                  0.01
-                );
-                const widthPct = (cost / maxDailyCost) * 100;
-                return (
-                  <div key={date} className="flex items-center gap-3 text-xs">
-                    <span className="text-muted w-20 shrink-0">{date}</span>
-                    <div className="flex-1 h-4 bg-muted/30 rounded overflow-hidden">
-                      <div
-                        className="h-full bg-primary/40 rounded"
-                        style={{ width: `${widthPct}%` }}
-                      />
-                    </div>
-                    <span className="w-16 text-right font-mono text-muted">
-                      {formatCurrency(cost)}
-                    </span>
-                  </div>
-                );
-              })}
+          <h3 className="text-sm font-medium mb-3">Budget</h3>
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="text-muted-foreground">Daily Limit:</span>{' '}
+              <span className="font-mono">{formatCurrency(costStats.dailyLimit)}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Monthly Limit:</span>{' '}
+              <span className="font-mono">{formatCurrency(costStats.monthlyLimit)}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Conversations:</span>{' '}
+              <span className="font-mono">{costStats.totalConversations}</span>
+            </div>
           </div>
         </div>
       )}

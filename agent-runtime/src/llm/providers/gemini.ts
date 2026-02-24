@@ -136,7 +136,7 @@ export class GeminiProvider implements LlmProvider {
   private genai: GoogleGenerativeAI;
 
   constructor(config?: ProviderConfig) {
-    const apiKey = config?.apiKey ?? process.env.GOOGLE_API_KEY ?? "";
+    const apiKey = config?.apiKey ?? process.env.GOOGLE_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "";
     this.genai = new GoogleGenerativeAI(apiKey);
   }
 
@@ -261,7 +261,7 @@ export class GeminiProvider implements LlmProvider {
   }
 
   async isAvailable(): Promise<boolean> {
-    return !!(process.env.GOOGLE_API_KEY);
+    return !!(process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY);
   }
 
   async healthCheck(): Promise<ProviderHealth> {

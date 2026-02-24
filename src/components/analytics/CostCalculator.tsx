@@ -90,7 +90,7 @@ export default function CostCalculator() {
   const [showModels, setShowModels] = useState(false);
   const [expandedRec, setExpandedRec] = useState<number | null>(null);
 
-  const monthlySpend = costStats?.monthlyCost ?? 25;
+  const monthlySpend = costStats?.monthCost ?? 25;
 
   const recommendations = useMemo(() => generateRecommendations(monthlySpend), [monthlySpend]);
   const totalPotentialSavings = recommendations.reduce((sum, r) => sum + r.monthlySavings, 0);

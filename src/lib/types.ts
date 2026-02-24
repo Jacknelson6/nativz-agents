@@ -98,24 +98,17 @@ export interface StructuredMemory {
 // --- Analytics types ---
 
 export interface UsageStats {
-  daily: DailyUsage[];
-  byAgent: Record<string, number>;
-  byModel: Record<string, number>;
-  byProvider: Record<string, number>;
-  totalTokens: number;
-}
-
-export interface DailyUsage {
-  date: string;
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
+  daily: { inputTokens: number; outputTokens: number; totalTokens: number };
+  monthly: { inputTokens: number; outputTokens: number; totalTokens: number };
+  byAgent: Array<{ group: string; inputTokens: number; outputTokens: number; totalTokens: number }>;
+  byModel: Array<{ group: string; inputTokens: number; outputTokens: number; totalTokens: number }>;
 }
 
 export interface CostStats {
-  dailyCost: Record<string, number>;
-  monthlyCost: number;
-  totalCost: number;
-  subscriptionSavings: number;
-  byProvider: Record<string, number>;
+  todayCost: number;
+  monthCost: number;
+  dailyLimit: number;
+  monthlyLimit: number;
+  withinBudget: boolean;
+  totalConversations: number;
 }

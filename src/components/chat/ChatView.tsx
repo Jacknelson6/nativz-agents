@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAgentStore } from "../../stores/agentStore";
 import { useChatStore } from "../../stores/chatStore";
+import { useModelStore } from "../../stores/modelStore";
 import MessageBubble from "./MessageBubble";
 import InputBar from "./InputBar";
 import EmptyState from "./EmptyState";
@@ -10,10 +11,14 @@ import { Loader2 } from "lucide-react";
 export default function ChatView() {
   const { selectedAgent } = useAgentStore();
   const { messages, isStreaming, sendMessage, setAgent } = useChatStore();
+  const { refreshProviders } = useModelStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (selectedAgent) setAgent(selectedAgent.id);
+    if (selectedAgent) {
+      setAgent(selectedAgent.id);
+      refreshProviders(selectedAgent.id);
+    }
   }, [selectedAgent?.id]);
 
   useEffect(() => {

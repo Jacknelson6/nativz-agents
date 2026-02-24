@@ -110,7 +110,7 @@ export class AgentRuntime {
     if (process.env.OPENAI_API_KEY) {
       this.providerRegistry.register(new OpenAIProvider());
     }
-    if (process.env.GOOGLE_API_KEY) {
+    if (process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       this.providerRegistry.register(new GeminiProvider());
     }
     // Ollama is local — always register, health check will determine availability

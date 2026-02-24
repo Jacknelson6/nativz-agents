@@ -46,7 +46,8 @@ export async function saveApiKey(key: string): Promise<void> {
 // --- Providers ---
 
 export async function listProviders(agentId?: string): Promise<Provider[]> {
-  return invoke('list_providers', { agentId: agentId ?? '' });
+  const result = await invoke<{ providers: Provider[] }>('list_providers', { agentId: agentId ?? '' });
+  return result.providers ?? [];
 }
 
 export async function setProvider(agentId: string, providerId: string): Promise<void> {

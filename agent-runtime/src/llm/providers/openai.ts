@@ -14,34 +14,23 @@ import type {
 
 const OPENAI_MODELS: ModelInfo[] = [
   {
-    id: "gpt-4.1",
-    name: "GPT-4.1",
-    contextWindow: 1047576,
-    maxOutputTokens: 32768,
-    inputCostPer1M: 2,
-    outputCostPer1M: 8,
-    supportsTools: true,
-    supportsStreaming: true,
-    supportsVision: true,
-  },
-  {
-    id: "gpt-4.1-mini",
-    name: "GPT-4.1 Mini",
-    contextWindow: 1047576,
-    maxOutputTokens: 32768,
-    inputCostPer1M: 0.4,
-    outputCostPer1M: 1.6,
-    supportsTools: true,
-    supportsStreaming: true,
-    supportsVision: true,
-  },
-  {
-    id: "gpt-5",
-    name: "GPT-5",
+    id: "gpt-4o",
+    name: "GPT-4o",
     contextWindow: 128000,
     maxOutputTokens: 16384,
-    inputCostPer1M: 10,
-    outputCostPer1M: 30,
+    inputCostPer1M: 2.5,
+    outputCostPer1M: 10,
+    supportsTools: true,
+    supportsStreaming: true,
+    supportsVision: true,
+  },
+  {
+    id: "gpt-4o-mini",
+    name: "GPT-4o Mini",
+    contextWindow: 128000,
+    maxOutputTokens: 16384,
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.6,
     supportsTools: true,
     supportsStreaming: true,
     supportsVision: true,
@@ -250,7 +239,7 @@ export class OpenAIProvider implements LlmProvider {
     const start = Date.now();
     try {
       await this.client.chat.completions.create({
-        model: "gpt-4.1-mini",
+        model: "gpt-4o-mini",
         max_tokens: 1,
         messages: [{ role: "user", content: "hi" }],
       });
