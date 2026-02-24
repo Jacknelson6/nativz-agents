@@ -121,13 +121,10 @@ export async function batchExportConversations(
   agentId: string,
   options: ExportOptions,
 ): Promise<ExportResult[]> {
-  const convos = store.listConversations(agentId);
+  const convos = store.list(agentId);
   const results: ExportResult[] = [];
-  for (const summary of convos) {
-    const conv = store.getConversation(summary.id);
-    if (conv) {
-      results.push(await exportConversation(conv, options));
-    }
+  for (const conv of convos) {
+    results.push(await exportConversation(conv, options));
   }
   return results;
 }
