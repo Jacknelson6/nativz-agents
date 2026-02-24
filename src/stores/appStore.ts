@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { AppSettings } from '../lib/types';
 import { getSettings, saveSettings as saveTauriSettings } from '../lib/tauri';
 
-type View = 'onboarding' | 'home' | 'chat' | 'settings' | 'analytics' | 'knowledge';
+type View = 'onboarding' | 'home' | 'chat' | 'settings' | 'analytics' | 'knowledge' | 'marketplace' | 'agent-profile';
 
 interface AppState {
   settings: AppSettings;

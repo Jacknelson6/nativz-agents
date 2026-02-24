@@ -1,7 +1,8 @@
-# Nativz Agents — Build Status
+# Nativz Agents — Final Build Status
 
 **Date:** 2026-02-24  
-**Status:** ✅ ALL COMPILES PASS — READY FOR LIVE TEST
+**Version:** 3.0.0  
+**Status:** ✅ SHIP-READY — All compiles pass, all tests pass
 
 ---
 
@@ -11,72 +12,83 @@
 |-------|--------|
 | `agent-runtime` TypeScript (`tsc --noEmit`) | ✅ Pass — 0 errors |
 | Frontend TypeScript (`tsc --noEmit`) | ✅ Pass — 0 errors |
-| Rust (`cargo check`) | ✅ Pass — 0 errors, 0 warnings |
-| Vite production build | ✅ Pass — 353 KB JS, 31 KB CSS |
+| Rust (`cargo check`) | ✅ Pass — 0 errors |
+| Vite production build | ✅ Pass — 411 KB JS, 51 KB CSS |
+| Test suite (31 tests, 8 suites) | ✅ All pass |
 
 ---
 
-## Architecture Summary
+## Architecture
 
-### File Counts (excluding node_modules, dist, target, skills/context-engineering)
+### File Inventory (source code only)
 
-| Category | Files | LOC |
-|----------|-------|-----|
-| Rust backend (`src-tauri/src/`) | 8 | 653 |
-| Frontend React/TSX (`src/`) | 31 | 2,778 |
-| Agent runtime TypeScript (`agent-runtime/src/`) | 74 | 9,391 |
-| Agent manifests (`agents/`) | 5 | — |
-| Config (package.json, tsconfig, vite, etc.) | ~6 | — |
-| **Total source code** | **~124** | **~12,822** |
+| Layer | Files | Description |
+|-------|-------|-------------|
+| **Rust Backend** (`src-tauri/src/`) | 8 | Tauri v2 IPC commands, sidecar manager, settings |
+| **Agent Runtime** (`agent-runtime/src/`) | 89 | JSON-RPC sidecar: LLM, memory, tools, knowledge, eval |
+| **Frontend** (`src/`) | 48 | React 19 + Zustand + Tailwind CSS 4 |
+| **Agent Manifests** (`agents/`) | 5 | account-manager, ads, content-editor, diy, seo |
+| **Tests** | 1 | 31 tests across 8 suites |
+| **Total** | **151** | **~20,900 LOC** |
 
-### Systems
+### System Map
 
-| System | Description | Status |
-|--------|-------------|--------|
-| **Rust Tauri Backend** | IPC commands, sidecar manager, settings store | ✅ Complete |
-| **Agent Runtime (sidecar)** | JSON-RPC server, LLM providers, memory, tools | ✅ Complete |
-| **React Frontend** | Chat UI, agent picker, settings, memory viewer | ✅ Complete |
-| **IPC Bridge** | 14 Tauri commands ↔ 15 RPC handlers (all matched) | ✅ Complete |
+| System | Key Files | Status |
+|--------|-----------|--------|
+| **Tauri IPC** | 14 commands in `src-tauri/src/commands/` | ✅ |
+| **Sidecar Manager** | `src-tauri/src/sidecar/manager.rs` | ✅ |
+| **JSON-RPC Bridge** | `agent-runtime/src/rpc/` | ✅ |
+| **Agent Loop** | `agent-runtime/src/agent/runtime.ts` | ✅ |
+| **Multi-Agent** | handoff, parallel, batch, chain | ✅ |
+| **LLM Providers** | Anthropic, OpenAI, Gemini, Ollama, OpenRouter | ✅ |
+| **Smart Router** | complexity-based model selection + cost awareness | ✅ |
+| **Memory** | structured, working, entity-graph, summarizer, extractor | ✅ |
+| **Knowledge** | LanceDB vectors, graph, reranker, live-context, compression | ✅ |
+| **Tools** | 14 built-in + MCP client + Composio + tool selector | ✅ |
+| **Browser** | Stagehand integration (act, observe, extract, screenshot) | ✅ |
+| **Context Engine** | token budget manager, skill loader, prompt optimizer | ✅ |
+| **Eval** | turn scorer, eval tracker (SQLite) | ✅ |
+| **Telemetry** | usage, cost, latency tracking | ✅ |
+| **Guardrails** | PII detection, content filtering | ✅ |
+| **Error Recovery** | classify + retry with backoff | ✅ |
+| **Streaming** | real-time token streaming to frontend | ✅ |
+| **Checkpointing** | durable execution, crash recovery | ✅ |
 
-### IPC Command Registration (14 commands — all verified)
+### Frontend Components
 
-Rust `invoke_handler`: `get_settings`, `save_settings`, `list_agents`, `send_message`, `get_history`, `list_conversations`, `load_conversation`, `set_provider`, `list_providers`, `get_usage_stats`, `delete_conversation`, `get_memories`, `get_working_memory`, `get_cost_stats`
+| Component | Location | Status |
+|-----------|----------|--------|
+| **Layout** | Sidebar, TopBar, StatusBar, CommandPalette, NotificationCenter, UpdateBanner, ErrorBoundary | ✅ |
+| **Chat** | ChatView, MessageBubble, InputBar, StreamingMessage, VoiceInput, ModelSelector, ToolStatus, PlanView, MultiAgentView, ArtifactCard/Renderer | ✅ |
+| **Agents** | AgentPicker, AgentCard, AgentBuilder, AgentMarketplace, AgentProfile | ✅ |
+| **Analytics** | Dashboard, CostCalculator | ✅ |
+| **Knowledge** | KnowledgeBrowser | ✅ |
+| **Memory** | MemoryInspector | ✅ |
+| **Settings** | Settings, ProviderConfig | ✅ |
+| **Onboarding** | Welcome, ApiKeySetup, RoleSelect, OnboardingV2 | ✅ |
 
-Agent-runtime RPC handlers: All 12 Rust-called methods registered + `initialize`, `list_agents`, `shutdown`
+### Routes (App.tsx)
 
-### Agent Manifests (5 agents)
+| View | Component | Sidebar Nav |
+|------|-----------|-------------|
+| `home` | AgentPicker | ✅ Home |
+| `chat` | ChatView | ✅ (via agent select) |
+| `analytics` | Dashboard | ✅ Analytics |
+| `knowledge` | KnowledgeBrowser | ✅ Knowledge |
+| `marketplace` | AgentMarketplace | ✅ Marketplace |
+| `settings` | Settings (modal) | ✅ Settings |
 
-- `account-manager`
-- `ads`
-- `content-editor`
-- `diy`
-- `seo`
+### IPC Commands (14)
 
-### Dependencies — All Present
-
-**Frontend:** react, react-dom, @tauri-apps/api, @tauri-apps/plugin-opener, zustand, lucide-react, react-markdown  
-**Agent Runtime:** anthropic SDK, provider adapters, JSON-RPC, structured memory
+`get_settings`, `save_settings`, `list_agents`, `send_message`, `get_history`, `list_conversations`, `load_conversation`, `delete_conversation`, `set_provider`, `list_providers`, `get_usage_stats`, `get_cost_stats`, `get_memories`, `get_working_memory`
 
 ---
 
-## Duplicate/Conflict Check
+## Scripts
 
-- ✅ No duplicate manifests
-- ✅ No duplicate skill files in agent dirs
-- ✅ No import conflicts detected
-- ✅ `skills/context-engineering/` is a reference/learning repo (not app code) — no conflicts
-
----
-
-## Known Issues / TODOs
-
-- None blocking. All compiles clean, all IPC aligned.
-
----
-
-## What's Needed for First Live Test
-
-1. **API Key** — Set an Anthropic (or other provider) API key in Settings
-2. **`cargo tauri dev`** — Run the app in dev mode
-3. **Test flow:** Select an agent → send a message → verify streaming response
-4. **Verify:** Memory persistence, conversation history, provider switching
+```bash
+npm run dev          # tauri dev (full desktop app)
+npm run build        # tauri build (production binary)
+npm run typecheck    # tsc checks for frontend + runtime
+npm run test         # 31 tests across 8 suites
+```

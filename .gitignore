@@ -27,9 +27,13 @@ dist-ssr
 # Build artifacts
 target/
 
+# Data
+data/
+
 # Database
 *.db
 
 # Environment
 .env
 .env.*
+!.env.example

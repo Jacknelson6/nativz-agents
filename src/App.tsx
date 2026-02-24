@@ -10,6 +10,8 @@ import RoleSelect from './components/onboarding/RoleSelect';
 import Settings from './components/settings/Settings';
 import Dashboard from './components/analytics/Dashboard';
 import KnowledgeBrowser from './components/knowledge/KnowledgeBrowser';
+import AgentMarketplace from './components/agents/AgentMarketplace';
+// AgentProfile is accessed via AgentPicker, not as a standalone route
 import type { AppSettings } from './lib/types';
 
 function Onboarding() {
@@ -73,6 +75,8 @@ export default function App() {
         {currentView === 'chat' && <ChatView />}
         {currentView === 'analytics' && <Dashboard />}
         {currentView === 'knowledge' && <KnowledgeBrowser agentId={selectedAgent?.id ?? 'global'} />}
+        {currentView === 'marketplace' && <AgentMarketplace />}
+        {currentView === 'agent-profile' && <AgentPicker />}
       </Layout>
       {settingsOpen && <Settings />}
     </>

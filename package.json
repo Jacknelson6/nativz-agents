@@ -4,10 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "tauri dev",
+    "build": "tauri build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "vite:dev": "vite",
+    "vite:build": "tsc && vite build",
+    "typecheck": "tsc --noEmit && cd agent-runtime && npx tsc --noEmit",
+    "test": "cd agent-runtime && node --test tests/runtime.test.ts"
   },
   "dependencies": {
     "react": "^19.1.0",
