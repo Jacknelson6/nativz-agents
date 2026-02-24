@@ -175,8 +175,8 @@ pub async fn list_providers(
 
     let result = rx.await.map_err(|_| "Channel closed".to_string())??;
 
-    // Pass through the full provider data from the agent runtime
-    Ok(result.get("providers").cloned().unwrap_or(serde_json::Value::Array(vec![])))
+    // Pass through the full response including the providers array
+    Ok(result)
 }
 
 #[tauri::command]
