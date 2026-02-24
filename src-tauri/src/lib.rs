@@ -10,48 +10,61 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // We pass a placeholder path here; the real path is resolved in setup()
-    // where we have access to the app's resource directory for production builds.
+    // Placeholder — real path is resolved in setup() where resource_dir is available
     let manager = SidecarManager::new(String::new());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(Mutex::new(manager))
         .setup(|app| {
-            // Resolve runtime path: try dev source first, then bundled resources
             let dev_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .parent()
                 .unwrap()
                 .to_path_buf();
+            let resource_base = app.path().resource_dir().ok();
+
+            // Dev mode: run TypeScript source with `npx tsx`
             let dev_runtime_path = dev_root
                 .join("agent-runtime")
                 .join("src")
                 .join("index.ts");
 
-            let resource_base = app.path().resource_dir().ok();
+            // Production: run esbuild bundle with `node`
+            // Try multiple resource paths (Tauri may add _up_ prefix)
+            let prod_bundle = resource_base.as_ref()
+                .map(|d| d.join("agent-runtime").join("dist").join("index.mjs"))
+                .filter(|p| p.exists())
+                .or_else(|| resource_base.as_ref()
+                    .map(|d| d.join("_up_").join("agent-runtime").join("dist").join("index.mjs"))
+                    .filter(|p| p.exists()));
 
-            // In production .app, resources are under the resource dir
-            let prod_runtime_path = resource_base.as_ref()
+            // Also check for unbundled TS source in resources as fallback
+            let prod_ts = resource_base.as_ref()
                 .map(|d| d.join("agent-runtime").join("src").join("index.ts"))
-                .filter(|p| p.exists());
-
-            let runtime_path = if dev_runtime_path.exists() {
-                dev_runtime_path.clone()
-            } else if let Some(ref prod_path) = prod_runtime_path {
-                prod_path.clone()
-            } else {
-                // Last resort: try _up_ prefix (Tauri resource bundling)
-                resource_base.as_ref()
+                .filter(|p| p.exists())
+                .or_else(|| resource_base.as_ref()
                     .map(|d| d.join("_up_").join("agent-runtime").join("src").join("index.ts"))
-                    .filter(|p| p.exists())
-                    .unwrap_or(dev_runtime_path)
-            };
+                    .filter(|p| p.exists()));
 
-            let is_dev = dev_runtime_path.exists() && runtime_path == dev_runtime_path;
+            // Determine mode: dev (tsx), prod-bundled (node), or prod-ts (tsx)
+            let (runtime_path, use_node) = if dev_runtime_path.exists() {
+                // Dev mode: use tsx to run TypeScript source
+                (dev_runtime_path, false)
+            } else if let Some(bundle_path) = prod_bundle {
+                // Production with esbuild bundle: use node directly
+                (bundle_path, true)
+            } else if let Some(ts_path) = prod_ts {
+                // Production with TS source: use tsx (fallback)
+                (ts_path, false)
+            } else {
+                // Nothing found — will fail on start, but log the path for debugging
+                eprintln!("[lib] WARNING: No runtime found in dev or resources!");
+                (dev_runtime_path, false)
+            };
 
             eprintln!("[lib] Runtime path: {}", runtime_path.display());
             eprintln!("[lib] Runtime exists: {}", runtime_path.exists());
-            eprintln!("[lib] Is dev mode: {}", is_dev);
+            eprintln!("[lib] Use node (bundled): {}", use_node);
 
             // Resolve agents directory
             let agents_dir = resource_base.as_ref()
@@ -64,10 +77,11 @@ pub fn run() {
                 .to_string_lossy()
                 .to_string();
 
-            // Update the sidecar manager with the resolved path and start it
+            // Configure and start sidecar
             let state = app.state::<Mutex<SidecarManager>>();
             let mut mgr = state.lock().unwrap();
             mgr.set_runtime_path(runtime_path.to_string_lossy().to_string());
+            mgr.set_use_node(use_node);
 
             if let Err(e) = mgr.start(app.handle().clone()) {
                 eprintln!("Failed to start sidecar: {}", e);
@@ -79,7 +93,6 @@ pub fn run() {
                 if !settings.api_key.is_empty() {
                     init_params["apiKey"] = serde_json::json!(settings.api_key);
                 }
-                // Wait for sidecar to be ready
                 std::thread::sleep(std::time::Duration::from_millis(500));
                 eprintln!("[lib] Sending initialize with agentsDir: {}", agents_dir);
                 if let Err(e) = mgr.send_request("initialize", init_params.clone()) {

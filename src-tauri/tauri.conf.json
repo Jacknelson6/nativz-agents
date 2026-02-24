@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npx vite",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npx vite build",
+    "beforeBuildCommand": "npx vite build && cd agent-runtime && npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -34,8 +34,13 @@
     "resources": [
       "../agents/**/*",
       "../agent-runtime/package.json",
+      "../agent-runtime/dist/index.mjs",
       "../agent-runtime/src/**/*",
-      "../agent-runtime/node_modules/**/*"
+      "../agent-runtime/node_modules/better-sqlite3/**/*",
+      "../agent-runtime/node_modules/bindings/**/*",
+      "../agent-runtime/node_modules/file-uri-to-path/**/*",
+      "../agent-runtime/node_modules/node-addon-api/**/*",
+      "../agent-runtime/node_modules/prebuild-install/**/*"
     ]
   }
 }

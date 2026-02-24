@@ -5,7 +5,8 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc",
+    "build": "node build.mjs",
+    "build:typecheck": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "cli": "tsx src/cli.ts"
   },
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.13.0",
+    "esbuild": "^0.25.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

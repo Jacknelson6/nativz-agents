@@ -32,6 +32,7 @@ pub struct SidecarManager {
     next_id: AtomicU64,
     pending: Arc<Mutex<HashMap<u64, tokio::sync::oneshot::Sender<Result<Value, String>>>>>,
     runtime_path: String,
+    use_node: bool, // true = run with `node` (bundled .mjs), false = `npx tsx` (dev .ts)
 }
 
 impl SidecarManager {
@@ -41,11 +42,80 @@ impl SidecarManager {
             next_id: AtomicU64::new(1),
             pending: Arc::new(Mutex::new(HashMap::new())),
             runtime_path,
+            use_node: false,
         }
     }
 
     pub fn set_runtime_path(&mut self, path: String) {
         self.runtime_path = path;
+    }
+
+    pub fn set_use_node(&mut self, use_node: bool) {
+        self.use_node = use_node;
+    }
+
+    /// Discover node/npx binary paths for macOS .app bundles
+    /// (which don't inherit user PATH from shell profiles)
+    fn discover_node_paths() -> (String, String, String) {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/unknown".to_string());
+
+        let mut candidates: Vec<String> = vec![
+            "/opt/homebrew/bin".to_string(),
+            "/usr/local/bin".to_string(),
+        ];
+
+        // Discover nvm versions dynamically
+        let nvm_dir = format!("{}/.nvm/versions/node", home);
+        if let Ok(entries) = std::fs::read_dir(&nvm_dir) {
+            let mut versions: Vec<_> = entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                .collect();
+            versions.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+            for entry in versions {
+                let bin = entry.path().join("bin");
+                if bin.join("node").exists() {
+                    candidates.push(bin.to_string_lossy().to_string());
+                    break;
+                }
+            }
+        }
+
+        // fnm
+        let fnm_bin = format!("{}/.local/share/fnm/aliases/default/bin", home);
+        if std::path::Path::new(&fnm_bin).join("node").exists() {
+            candidates.push(fnm_bin);
+        }
+
+        // volta
+        let volta_bin = format!("{}/.volta/bin", home);
+        if std::path::Path::new(&volta_bin).join("node").exists() {
+            candidates.push(volta_bin);
+        }
+
+        // Find first existing node and npx
+        let node_path = candidates.iter()
+            .map(|d| format!("{}/node", d))
+            .find(|p| std::path::Path::new(p).exists())
+            .unwrap_or_else(|| "node".to_string());
+
+        let npx_path = candidates.iter()
+            .map(|d| format!("{}/npx", d))
+            .find(|p| std::path::Path::new(p).exists())
+            .unwrap_or_else(|| "npx".to_string());
+
+        // Build PATH including all discovered bin dirs
+        let extra_paths: Vec<String> = candidates.iter()
+            .filter(|d| std::path::Path::new(d.as_str()).exists())
+            .cloned()
+            .collect();
+        let path_env = format!(
+            "{}:{}",
+            extra_paths.join(":"),
+            std::env::var("PATH").unwrap_or_default()
+        );
+
+        (node_path, npx_path, path_env)
     }
 
     pub fn start(&mut self, app_handle: AppHandle) -> Result<(), String> {
@@ -57,75 +127,38 @@ impl SidecarManager {
             .parent().unwrap()
             .parent().unwrap();
 
-        // Use npx tsx to run the TypeScript runtime
-        // macOS .app bundles don't inherit user PATH, so discover node/npx dynamically
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/Users/unknown".to_string());
+        let (node_path, npx_path, path_env) = Self::discover_node_paths();
 
-        // Build candidate list: check common nvm/fnm/homebrew/volta paths
-        let mut npx_candidates: Vec<String> = vec![
-            "/opt/homebrew/bin/npx".to_string(),        // Apple Silicon homebrew
-            "/usr/local/bin/npx".to_string(),           // Intel homebrew
-        ];
+        let mut child = if self.use_node {
+            // Production: run bundled .mjs with node directly
+            eprintln!("[sidecar] Using node at: {}", node_path);
+            eprintln!("[sidecar] Spawning: {} {} in {:?}", node_path, &self.runtime_path, runtime_dir);
 
-        // Discover nvm versions dynamically (instead of hardcoding)
-        let nvm_dir = format!("{}/.nvm/versions/node", home);
-        if let Ok(entries) = std::fs::read_dir(&nvm_dir) {
-            let mut versions: Vec<_> = entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                .collect();
-            // Sort by name descending to prefer latest version
-            versions.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
-            for entry in versions {
-                let npx = entry.path().join("bin").join("npx");
-                if npx.exists() {
-                    npx_candidates.push(npx.to_string_lossy().to_string());
-                    break; // use the latest version
-                }
-            }
-        }
+            Command::new(&node_path)
+                .arg(&self.runtime_path)
+                .env("PATH", &path_env)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .current_dir(runtime_dir)
+                .spawn()
+                .map_err(|e| format!("Failed to spawn sidecar (node): {}", e))?
+        } else {
+            // Dev: run TypeScript source with npx tsx
+            eprintln!("[sidecar] Using npx at: {}", npx_path);
+            eprintln!("[sidecar] Spawning: {} tsx {} in {:?}", npx_path, &self.runtime_path, runtime_dir);
 
-        // Check fnm and volta too
-        let fnm_path = format!("{}/.local/share/fnm/node-versions", home);
-        if std::path::Path::new(&fnm_path).exists() {
-            npx_candidates.push(format!("{}/.local/share/fnm/aliases/default/bin/npx", home));
-        }
-        let volta_path = format!("{}/.volta/bin/npx", home);
-        if std::path::Path::new(&volta_path).exists() {
-            npx_candidates.push(volta_path);
-        }
-
-        npx_candidates.push("npx".to_string()); // fallback to PATH
-
-        let npx_path = npx_candidates.iter()
-            .find(|p| std::path::Path::new(p.as_str()).exists() || p.as_str() == "npx")
-            .cloned()
-            .unwrap_or_else(|| "npx".to_string());
-
-        eprintln!("[sidecar] Using npx at: {}", npx_path);
-        eprintln!("[sidecar] Spawning: {} tsx {} in {:?}", npx_path, &self.runtime_path, runtime_dir);
-
-        // Build PATH that includes the discovered node bin directory
-        let npx_dir = std::path::Path::new(&npx_path)
-            .parent()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let path_env = format!(
-            "{}:/opt/homebrew/bin:/usr/local/bin:{}",
-            npx_dir,
-            std::env::var("PATH").unwrap_or_default()
-        );
-
-        let mut child = Command::new(npx_path)
-            .arg("tsx")
-            .arg(&self.runtime_path)
-            .env("PATH", &path_env)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .current_dir(runtime_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
+            Command::new(&npx_path)
+                .arg("tsx")
+                .arg(&self.runtime_path)
+                .env("PATH", &path_env)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .current_dir(runtime_dir)
+                .spawn()
+                .map_err(|e| format!("Failed to spawn sidecar (tsx): {}", e))?
+        };
 
         let stdout = child.stdout.take().ok_or("No stdout")?;
         let pending = self.pending.clone();
@@ -143,18 +176,14 @@ impl SidecarManager {
                     continue;
                 }
 
-                // Try to parse as JSON
                 if let Ok(parsed) = serde_json::from_str::<Value>(&line) {
-                    // Check if it's a JSON-RPC notification (no "id" field = notification)
                     if parsed.get("method").and_then(|m| m.as_str()) == Some("stream_chunk")
                         && parsed.get("id").is_none()
                     {
-                        // Emit as Tauri event for the frontend
                         if let Some(params) = parsed.get("params") {
                             let _ = app.emit("agent-stream", params.clone());
                         }
                     } else if let Ok(resp) = serde_json::from_value::<JsonRpcResponse>(parsed.clone()) {
-                        // It's a JSON-RPC response with an id
                         let mut pending = pending.lock().unwrap();
                         if let Some(tx) = pending.remove(&resp.id) {
                             if let Some(err) = resp.error {
@@ -167,13 +196,12 @@ impl SidecarManager {
                         let _ = app.emit("sidecar-output", &line);
                     }
                 } else {
-                    // Not JSON — log line
                     let _ = app.emit("sidecar-output", &line);
                 }
             }
         });
 
-        // Stderr reader (just log it)
+        // Stderr reader
         let stderr = child.stderr.take();
         if let Some(stderr) = stderr {
             let app2 = app_handle.clone();
