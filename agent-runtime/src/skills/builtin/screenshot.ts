@@ -2,6 +2,15 @@ import { z } from "zod";
 import type { SkillDefinition } from "../registry.js";
 import { BrowserManager } from "../../browser/manager.js";
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+    ),
+  ]);
+}
+
 export const screenshotSkill: SkillDefinition = {
   name: "screenshot",
   description: "Take a screenshot of a web page at the given URL. Returns base64 PNG.",
@@ -19,7 +28,11 @@ export const screenshotSkill: SkillDefinition = {
     const page = await manager.newPage({ width: width ?? 1280, height: height ?? 720 });
     try {
       await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
-      const buffer = await page.screenshot({ fullPage: fullPage ?? false, type: "png" });
+      const buffer = await withTimeout(
+        page.screenshot({ fullPage: fullPage ?? false, type: "png" }),
+        20000,
+        "Screenshot capture"
+      );
       const base64 = Buffer.from(buffer).toString("base64");
       return JSON.stringify({
         success: true,

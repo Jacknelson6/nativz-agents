@@ -2,6 +2,15 @@ import { z } from "zod";
 import type { SkillDefinition } from "../registry.js";
 import { StagehandManager } from "../../browser/stagehand.js";
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+    ),
+  ]);
+}
+
 export const stagehandActSkill: SkillDefinition = {
   name: "stagehand-act",
   description:
@@ -18,7 +27,7 @@ export const stagehandActSkill: SkillDefinition = {
     try {
       await manager.init();
       await manager.navigate(url);
-      const result = await manager.act(instruction);
+      const result = await withTimeout(manager.act(instruction), 45000, "Stagehand act");
       return JSON.stringify({ success: true, result });
     } catch (err) {
       return JSON.stringify({ success: false, error: (err as Error).message });

@@ -3,6 +3,12 @@ import { ClaudeClient, type LlmResponse, type StreamCallbacks } from "../llm/cli
 import { selectModel, classifyComplexity, SmartRouter, type ModelConfig, type RoutingDecision } from "../llm/router.js";
 import { ProviderRegistry } from "../llm/provider-registry.js";
 import { CostTracker as LlmCostTracker } from "../llm/cost-tracker.js";
+import { AnthropicProvider } from "../llm/providers/anthropic.js";
+import { OpenAIProvider } from "../llm/providers/openai.js";
+import { GeminiProvider } from "../llm/providers/gemini.js";
+import { OllamaProvider } from "../llm/providers/ollama.js";
+import { OpenRouterProvider } from "../llm/providers/openrouter.js";
+import type { UnifiedLlmRequest, UnifiedLlmResponse, UnifiedMessage, UnifiedToolDefinition, UnifiedStreamCallbacks, UnifiedContentBlock } from "../llm/providers/types.js";
 import { SkillRegistry } from "../skills/registry.js";
 import { SkillExecutor } from "../skills/executor.js";
 import { builtinSkills } from "../skills/builtin/index.js";
@@ -93,9 +99,26 @@ export class AgentRuntime {
     this.summarizer = new ConversationSummarizer(this.client);
     this.mcpRegistry = new McpRegistry();
 
-    // v2 systems
+    // v2 systems — register all available providers
     this.providerRegistry = new ProviderRegistry();
     this.llmCostTracker = new LlmCostTracker();
+
+    // Always register Anthropic (we have it as the legacy fallback)
+    this.providerRegistry.register(new AnthropicProvider({ apiKey }));
+
+    // Register other providers if their API keys are available
+    if (process.env.OPENAI_API_KEY) {
+      this.providerRegistry.register(new OpenAIProvider());
+    }
+    if (process.env.GOOGLE_API_KEY) {
+      this.providerRegistry.register(new GeminiProvider());
+    }
+    // Ollama is local — always register, health check will determine availability
+    this.providerRegistry.register(new OllamaProvider());
+    if (process.env.OPENROUTER_API_KEY) {
+      this.providerRegistry.register(new OpenRouterProvider());
+    }
+
     this.smartRouter = new SmartRouter(this.providerRegistry, this.llmCostTracker);
     this.structuredMemory = new StructuredMemoryStore(path.join(this.dataDir, "structured_memory.db"));
     this.conversationStore = new ConversationStore(path.join(this.dataDir, "conversations.db"));
@@ -273,17 +296,43 @@ export class AgentRuntime {
       contextManager: this.contextManager,
     });
 
-    // Select model via smart router or legacy
-    const complexity = classifyComplexity(userMessage);
-    const modelConfig: ModelConfig = this.manifest.model;
-    const model = selectModel(complexity, modelConfig);
-
-    // Get tools (with dynamic selection if too many)
+    // Select model via smart router (multi-provider) with fallback to legacy
     const allTools = this.skillRegistry.list();
     const selectedTools = this.toolSelector.selectTools(userMessage, allTools);
     const tools = this.skillRegistry.toClaudeTools(
       selectedTools.map((t) => t.name)
     );
+
+    const routingDecision = this.smartRouter.route(
+      userMessage,
+      this.conversationHistory.length,
+      tools.length,
+      this.manifest.id
+    );
+
+    // If user has hot-swapped a provider, override the router's decision
+    const activeProvider = this.activeProviderId ?? routingDecision.provider;
+    const activeModel = this.activeProviderId
+      ? routingDecision.model // keep router's model choice even with override
+      : routingDecision.model;
+
+    // Convert tools to unified format for multi-provider calls
+    const unifiedTools: UnifiedToolDefinition[] | undefined = tools.length > 0
+      ? tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          inputSchema: {
+            type: "object" as const,
+            properties: Object.fromEntries(
+              Object.entries((t.input_schema.properties ?? {}) as Record<string, Record<string, unknown>>).map(([k, v]) => [k, {
+                type: (v.type as string) ?? "string",
+                description: (v.description as string) ?? undefined,
+              }])
+            ),
+            required: t.input_schema.required as string[] | undefined,
+          },
+        }))
+      : undefined;
 
     // Agent loop
     let messages = [...ctx.messages];
@@ -294,7 +343,21 @@ export class AgentRuntime {
       loopCount++;
       const callStartTime = Date.now();
 
-      const streamCallbacks: StreamCallbacks | undefined = onStreamNotify
+      // Build unified request
+      const unifiedMessages: UnifiedMessage[] = messages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      }));
+
+      const unifiedRequest: UnifiedLlmRequest = {
+        model: activeModel,
+        system: ctx.system,
+        messages: unifiedMessages,
+        tools: unifiedTools,
+        maxTokens: this.manifest.guardrails.maxTokensPerTurn,
+      };
+
+      const streamCallbacks: UnifiedStreamCallbacks | undefined = onStreamNotify
         ? {
             onTextDelta: (text) => onStreamNotify("text_delta", { text }),
             onToolUseStart: (name, id) => onStreamNotify("tool_use_start", { name, toolUseId: id }),
@@ -302,49 +365,38 @@ export class AgentRuntime {
           }
         : undefined;
 
-      const response = onStreamNotify
-        ? await this.client.streamCall(
-            {
-              model,
-              system: ctx.system,
-              messages,
-              tools: tools.length > 0 ? tools : undefined,
-              maxTokens: this.manifest.guardrails.maxTokensPerTurn,
-            },
-            streamCallbacks
-          )
-        : await this.client.call({
-            model,
-            system: ctx.system,
-            messages,
-            tools: tools.length > 0 ? tools : undefined,
-            maxTokens: this.manifest.guardrails.maxTokensPerTurn,
-          });
+      // Route through provider registry with fallback chain
+      const useStream = !!onStreamNotify;
+      const response = await this.providerRegistry.callWithFallback(
+        unifiedRequest,
+        activeProvider,
+        streamCallbacks,
+        useStream
+      );
 
-      const callEndTime = Date.now();
-      const latencyMs = callEndTime - callStartTime;
+      const latencyMs = response.latencyMs;
 
-      // Record telemetry
+      // Record telemetry with actual provider/model used
       this.usageTracker.recordUsage({
         conversationId: this.conversationId ?? "unknown",
         agentId: this.manifest.id,
-        provider: "anthropic",
-        model,
+        provider: response.provider,
+        model: response.model,
         inputTokens: response.usage.inputTokens,
         outputTokens: response.usage.outputTokens,
       });
 
       this.latencyTracker.record({
-        provider: "anthropic",
-        model,
-        timeToFirstTokenMs: latencyMs * 0.3, // estimate
+        provider: response.provider,
+        model: response.model,
+        timeToFirstTokenMs: latencyMs * 0.3,
         totalTimeMs: latencyMs,
       });
 
       this.llmCostTracker.recordUsage(
         this.conversationId ?? "unknown",
-        "anthropic",
-        model,
+        response.provider,
+        response.model,
         response.usage.inputTokens,
         response.usage.outputTokens
       );
@@ -383,7 +435,7 @@ export class AgentRuntime {
           this.turnIndex,
           score,
           this.manifest.id,
-          model
+          response.model
         );
 
         // Extract facts asynchronously (fire-and-forget with fast model)
@@ -396,8 +448,9 @@ export class AgentRuntime {
         return text;
       }
 
-      // Execute tools
-      messages.push({ role: "assistant", content: response.content });
+      // Execute tools — convert unified content back to Anthropic ContentBlock shape
+      // for message history (the conversation protocol uses Anthropic format)
+      messages.push({ role: "assistant", content: response.content as unknown as ContentBlock[] });
 
       const toolResults: Array<{
         type: "tool_result";
