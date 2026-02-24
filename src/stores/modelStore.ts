@@ -8,7 +8,7 @@ interface ModelState {
   availableProviders: Provider[];
   loading: boolean;
   refreshProviders: () => Promise<void>;
-  setProvider: (providerId: string, modelId: string) => Promise<void>;
+  setProvider: (agentId: string, providerId: string) => Promise<void>;
 }
 
 export const useModelStore = create<ModelState>((set) => ({
@@ -27,8 +27,8 @@ export const useModelStore = create<ModelState>((set) => ({
     }
   },
 
-  setProvider: async (providerId, modelId) => {
-    await setTauriProvider(providerId, modelId);
-    set({ currentProviderId: providerId, currentModelId: modelId });
+  setProvider: async (agentId, providerId) => {
+    await setTauriProvider(agentId, providerId);
+    set({ currentProviderId: providerId });
   },
 }));

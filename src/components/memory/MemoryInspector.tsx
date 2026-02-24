@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Search, Trash2, Edit3, Check, Brain } from 'lucide-react';
 import { getMemories } from '../../lib/tauri';
+import { useAgentStore } from '../../stores/agentStore';
 import type { StructuredMemory, MemoryCategory, MemoryEntityType } from '../../lib/types';
 
 const CATEGORIES: MemoryCategory[] = [
@@ -28,21 +29,28 @@ export default function MemoryInspector({ onClose }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const { selectedAgent } = useAgentStore();
 
   const fetchMemories = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getMemories({
-        entityType: filterEntity || undefined,
-        category: filterCategory || undefined,
-        search: search || undefined,
-      });
-      setMemories(result);
+      const agentId = selectedAgent?.id ?? '';
+      const result = await getMemories(agentId, 'default', filterEntity || undefined);
+      // Client-side filtering for category and search
+      let filtered = result;
+      if (filterCategory) {
+        filtered = filtered.filter((m) => m.category === filterCategory);
+      }
+      if (search) {
+        const q = search.toLowerCase();
+        filtered = filtered.filter((m) => m.content.toLowerCase().includes(q));
+      }
+      setMemories(filtered);
     } catch {
       setMemories([]);
     }
     setLoading(false);
-  }, [filterEntity, filterCategory, search]);
+  }, [selectedAgent, filterEntity, filterCategory, search]);
 
   useEffect(() => {
     fetchMemories();

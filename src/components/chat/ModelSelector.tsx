@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useModelStore } from '../../stores/modelStore';
+import { useAgentStore } from '../../stores/agentStore';
 import type { Provider } from '../../lib/types';
 
 export default function ModelSelector() {
@@ -29,8 +30,10 @@ export default function ModelSelector() {
   const currentProvider = availableProviders.find((p) => p.id === currentProviderId);
   const currentModel = currentProvider?.models.find((m) => m.id === currentModelId);
 
-  const handleSelect = async (provider: Provider, modelId: string) => {
-    await setProvider(provider.id, modelId);
+  const { selectedAgent } = useAgentStore();
+
+  const handleSelect = async (provider: Provider, _modelId: string) => {
+    await setProvider(selectedAgent?.id ?? '', provider.id);
     setOpen(false);
   };
 

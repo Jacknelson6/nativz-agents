@@ -147,6 +147,7 @@ impl SidecarManager {
         Ok(rx)
     }
 
+    #[allow(dead_code)]
     pub fn is_running(&self) -> bool {
         self.process.is_some()
     }

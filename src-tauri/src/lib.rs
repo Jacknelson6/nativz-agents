@@ -2,7 +2,7 @@ mod commands;
 mod sidecar;
 
 use commands::agents::list_agents;
-use commands::chat::{get_history, get_usage_stats, list_conversations, list_providers, load_conversation, send_message, set_provider};
+use commands::chat::{delete_conversation, get_cost_stats, get_history, get_memories, get_usage_stats, get_working_memory, list_conversations, list_providers, load_conversation, send_message, set_provider};
 use commands::settings::{get_settings, save_settings};
 use sidecar::SidecarManager;
 use std::sync::Mutex;
@@ -66,6 +66,10 @@ pub fn run() {
             set_provider,
             list_providers,
             get_usage_stats,
+            delete_conversation,
+            get_memories,
+            get_working_memory,
+            get_cost_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -199,3 +199,73 @@ pub async fn get_usage_stats(
     let result = rx.await.map_err(|_| "Channel closed".to_string())??;
     Ok(result)
 }
+
+#[tauri::command]
+pub async fn delete_conversation(
+    conversation_id: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<(), String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("delete_conversation", json!({
+            "conversationId": conversation_id,
+        }))?
+    };
+
+    let _ = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_memories(
+    agent_id: String,
+    entity_id: String,
+    entity_type: Option<String>,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<serde_json::Value, String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("get_memories", json!({
+            "agentId": agent_id,
+            "entityId": entity_id,
+            "entityType": entity_type.unwrap_or_else(|| "user".to_string()),
+        }))?
+    };
+
+    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(result.get("memories").cloned().unwrap_or(serde_json::Value::Array(vec![])))
+}
+
+#[tauri::command]
+pub async fn get_working_memory(
+    agent_id: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<serde_json::Value, String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("get_working_memory", json!({
+            "agentId": agent_id,
+        }))?
+    };
+
+    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(result.get("entries").cloned().unwrap_or(serde_json::Value::Object(serde_json::Map::new())))
+}
+
+#[tauri::command]
+pub async fn get_cost_stats(
+    agent_id: Option<String>,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<serde_json::Value, String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        let mut params = serde_json::Map::new();
+        if let Some(id) = agent_id {
+            params.insert("agentId".to_string(), serde_json::Value::String(id));
+        }
+        mgr.send_request("get_cost_stats", serde_json::Value::Object(params))?
+    };
+
+    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(result)
+}

@@ -45,18 +45,18 @@ export async function saveApiKey(key: string): Promise<void> {
 
 // --- Providers ---
 
-export async function listProviders(): Promise<Provider[]> {
-  return invoke('list_providers');
+export async function listProviders(agentId?: string): Promise<Provider[]> {
+  return invoke('list_providers', { agentId: agentId ?? '' });
 }
 
-export async function setProvider(providerId: string, modelId: string): Promise<void> {
-  return invoke('set_provider', { providerId, modelId });
+export async function setProvider(agentId: string, providerId: string): Promise<void> {
+  return invoke('set_provider', { agentId, providerId });
 }
 
 // --- Conversations ---
 
-export async function listConversations(): Promise<ConversationSummary[]> {
-  return invoke('list_conversations');
+export async function listConversations(agentId?: string): Promise<ConversationSummary[]> {
+  return invoke('list_conversations', { agentId: agentId ?? '' });
 }
 
 export async function loadConversation(conversationId: string): Promise<Conversation> {
@@ -73,26 +73,22 @@ export async function getConversations(_agentId: string): Promise<Conversation[]
 
 // --- Memory ---
 
-export async function getMemories(filters?: {
-  entityType?: string;
-  category?: string;
-  search?: string;
-}): Promise<StructuredMemory[]> {
-  return invoke('get_memories', { filters: filters ?? {} });
+export async function getMemories(agentId: string, entityId: string, entityType?: string): Promise<StructuredMemory[]> {
+  return invoke('get_memories', { agentId, entityId, entityType: entityType ?? 'user' });
 }
 
-export async function getWorkingMemory(agentId: string): Promise<string> {
+export async function getWorkingMemory(agentId: string): Promise<Record<string, unknown>> {
   return invoke('get_working_memory', { agentId });
 }
 
 // --- Analytics ---
 
-export async function getUsageStats(): Promise<UsageStats> {
-  return invoke('get_usage_stats');
+export async function getUsageStats(agentId?: string): Promise<UsageStats> {
+  return invoke('get_usage_stats', { agentId: agentId ?? '' });
 }
 
-export async function getCostStats(): Promise<CostStats> {
-  return invoke('get_cost_stats');
+export async function getCostStats(agentId?: string): Promise<CostStats> {
+  return invoke('get_cost_stats', { agentId });
 }
 
 // --- Streaming ---
