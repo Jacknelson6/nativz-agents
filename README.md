@@ -97,6 +97,20 @@ The app uses a **sidecar pattern**: the Tauri Rust backend spawns the Node.js ag
 React Frontend ←→ Tauri (Rust) ←→ Agent Runtime (Node.js/Claude)
 ```
 
+## Testing
+
+```bash
+# Run smoke tests
+./scripts/test-agents.sh
+
+# Test an agent interactively
+cd agent-runtime
+ANTHROPIC_API_KEY=sk-ant-... npx tsx src/cli.ts --agent seo
+
+# Test with a single message
+ANTHROPIC_API_KEY=sk-ant-... npx tsx src/cli.ts --agent seo --message "What are the most important Core Web Vitals metrics?"
+```
+
 ## License
 
 MIT
