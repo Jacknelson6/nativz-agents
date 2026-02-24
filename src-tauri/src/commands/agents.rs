@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
+use tauri::Manager;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct Agent {
@@ -11,7 +12,7 @@ pub struct Agent {
     pub category: String,
 }
 
-fn agents_dir() -> PathBuf {
+fn agents_dir_dev() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
@@ -19,8 +20,15 @@ fn agents_dir() -> PathBuf {
 }
 
 #[tauri::command]
-pub fn list_agents() -> Vec<Agent> {
-    let dir = agents_dir();
+pub fn list_agents(app: tauri::AppHandle) -> Vec<Agent> {
+    let resource_base = app.path().resource_dir().ok();
+    let dir = resource_base.as_ref()
+        .map(|d| d.join("_up_").join("agents"))
+        .filter(|d| d.exists())
+        .or_else(|| resource_base.as_ref()
+            .map(|d| d.join("agents"))
+            .filter(|d| d.exists()))
+        .unwrap_or_else(agents_dir_dev);
     let mut agents = Vec::new();
 
     let entries = match fs::read_dir(&dir) {

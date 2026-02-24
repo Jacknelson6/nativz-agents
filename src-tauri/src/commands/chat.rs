@@ -17,16 +17,31 @@ pub async fn send_message(
     message: String,
     sidecar: tauri::State<'_, Mutex<SidecarManager>>,
 ) -> Result<String, String> {
+    eprintln!("[chat] send_message called: agent={}, msg={}", agent_id, &message[..message.len().min(50)]);
     let rx = {
-        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        let mut mgr = sidecar.lock().map_err(|e| {
+            eprintln!("[chat] Failed to lock sidecar: {}", e);
+            e.to_string()
+        })?;
         mgr.send_request("send_message", json!({
             "agentId": agent_id,
             "message": message,
-        }))?
+        })).map_err(|e| {
+            eprintln!("[chat] send_request failed: {}", e);
+            e
+        })?
     };
 
-    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    eprintln!("[chat] Waiting for response...");
+    let result = rx.await.map_err(|e| {
+        eprintln!("[chat] Channel error: {}", e);
+        "Channel closed - sidecar may have crashed".to_string()
+    })?.map_err(|e| {
+        eprintln!("[chat] Sidecar error: {}", e);
+        e
+    })?;
 
+    eprintln!("[chat] Got result: {:?}", &format!("{}", result)[..100.min(format!("{}", result).len())]);
     let response = result
         .get("response")
         .and_then(|v| v.as_str())

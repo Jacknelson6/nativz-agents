@@ -69,7 +69,7 @@ export default function ChatView() {
               lastMsg.content !== "" && (
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mt-3 ml-1">
                   <Loader2 size={12} className="animate-spin" />
-                  <span>Streaming...</span>
+                  <span>typing...</span>
                 </div>
               )}
             <div ref={bottomRef} />

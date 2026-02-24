@@ -26,6 +26,8 @@ dist-ssr
 
 # Build artifacts
 target/
+src-tauri/binaries/
+agent-runtime/.*.bun-build
 
 # Data
 data/

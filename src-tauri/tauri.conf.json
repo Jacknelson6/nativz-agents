@@ -33,6 +33,10 @@
     ],
     "externalBin": [
       "binaries/agent-runtime"
+    ],
+    "resources": [
+      "../agents/**/*",
+      "../agent-runtime/package.json"
     ]
   }
 }

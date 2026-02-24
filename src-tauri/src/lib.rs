@@ -10,8 +10,8 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // In dev mode, resolve agent-runtime relative to the Cargo manifest dir
-    // The src-tauri dir is at <project>/src-tauri, so parent is <project>
+    // Resolve project root — works both in dev and production (.app)
+    // CARGO_MANIFEST_DIR is baked at compile time, so it always points to the original source
     let project_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
@@ -22,6 +22,10 @@ pub fn run() {
         .join("index.ts")
         .to_string_lossy()
         .to_string();
+
+    eprintln!("[lib] Project root: {:?}", project_root);
+    eprintln!("[lib] Runtime path: {}", runtime_path);
+    eprintln!("[lib] Runtime exists: {}", std::path::Path::new(&runtime_path).exists());
 
     let manager = SidecarManager::new(runtime_path);
 
@@ -37,10 +41,20 @@ pub fn run() {
             } else {
                 // Read API key from settings
                 let settings = commands::settings::get_settings(app.handle().clone());
-                let agents_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .parent()
-                    .unwrap()
-                    .join("agents")
+                // Try resource dir first (production DMG), fall back to dev path
+                let resource_base = app.path().resource_dir().ok();
+                let agents_dir = resource_base.as_ref()
+                    .map(|d| d.join("_up_").join("agents"))
+                    .filter(|d| d.exists())
+                    .or_else(|| resource_base.as_ref()
+                        .map(|d| d.join("agents"))
+                        .filter(|d| d.exists()))
+                    .unwrap_or_else(|| {
+                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .parent()
+                            .unwrap()
+                            .join("agents")
+                    })
                     .to_string_lossy()
                     .to_string();
                 let mut init_params = serde_json::json!({
@@ -49,8 +63,13 @@ pub fn run() {
                 if !settings.api_key.is_empty() {
                     init_params["apiKey"] = serde_json::json!(settings.api_key);
                 }
-                if let Err(e) = mgr.send_request("initialize", init_params) {
-                    eprintln!("Failed to send initialize: {}", e);
+                // Wait for sidecar to be ready
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                eprintln!("[lib] Sending initialize with agentsDir: {}", agents_dir);
+                if let Err(e) = mgr.send_request("initialize", init_params.clone()) {
+                    eprintln!("[lib] Failed to send initialize: {}", e);
+                } else {
+                    eprintln!("[lib] Initialize sent successfully");
                 }
             }
             Ok(())

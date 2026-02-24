@@ -49,46 +49,41 @@ impl SidecarManager {
             return Ok(());
         }
 
-        // Try compiled binary first (production/DMG), fall back to npx tsx (dev)
         let runtime_dir = std::path::Path::new(&self.runtime_path)
             .parent().unwrap()
             .parent().unwrap();
 
-        let child_result = {
-            // Check for compiled sidecar binary
-            let binary_path_dev = runtime_dir.join("src-tauri").join("binaries").join(format!(
-                "agent-runtime-{}-apple-darwin",
-                std::env::consts::ARCH
-            ));
+        // Use npx tsx to run the TypeScript runtime
+        // macOS .app bundles don't inherit user PATH, so try common locations
+        let npx_candidates = vec![
+            "/opt/homebrew/bin/npx",        // Apple Silicon homebrew
+            "/usr/local/bin/npx",           // Intel homebrew / nvm
+            "/Users/jacknelson/.nvm/versions/node/v25.5.0/bin/npx", // nvm
+            "npx",                          // fallback to PATH
+        ];
 
-            let found_binary: Option<std::path::PathBuf> = if binary_path_dev.exists() {
-                Some(binary_path_dev)
-            } else {
-                None
-            };
+        let npx_path = npx_candidates.iter()
+            .find(|p| std::path::Path::new(p).exists() || *p == &"npx")
+            .unwrap_or(&"npx");
 
-            if let Some(binary_path) = found_binary {
-                eprintln!("[sidecar] Using compiled binary: {:?}", binary_path);
-                Command::new(binary_path)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .current_dir(runtime_dir)
-                    .spawn()
-            } else {
-                eprintln!("[sidecar] No binary found, falling back to npx tsx");
-                Command::new("npx")
-                    .arg("tsx")
-                    .arg(&self.runtime_path)
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .current_dir(runtime_dir)
-                    .spawn()
-            }
-        };
+        eprintln!("[sidecar] Using npx at: {}", npx_path);
+        eprintln!("[sidecar] Spawning: {} tsx {} in {:?}", npx_path, &self.runtime_path, runtime_dir);
 
-        let mut child = child_result
+        // Set PATH explicitly so child processes (MCP servers) can find npx/node too
+        let path_env = format!(
+            "/opt/homebrew/bin:/usr/local/bin:{}",
+            std::env::var("PATH").unwrap_or_default()
+        );
+
+        let mut child = Command::new(npx_path)
+            .arg("tsx")
+            .arg(&self.runtime_path)
+            .env("PATH", &path_env)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .current_dir(runtime_dir)
+            .spawn()
             .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
 
         let stdout = child.stdout.take().ok_or("No stdout")?;

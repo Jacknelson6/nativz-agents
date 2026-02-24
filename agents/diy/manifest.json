@@ -52,7 +52,9 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "./"
+        "./",
+        "$HOME/projects",
+        "$HOME/Desktop"
       ]
     },
     {
@@ -62,6 +64,36 @@
         "-y",
         "@modelcontextprotocol/server-memory"
       ]
+    },
+    {
+      "name": "github",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    {
+      "name": "sequential-thinking",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    {
+      "name": "brave-search",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
     }
   ],
   "memory": {

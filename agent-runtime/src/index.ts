@@ -8,11 +8,17 @@ import { supabase } from "./integrations/supabase.js";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Handle both ESM (tsx) and compiled binary (bun) contexts
+let __dirname_resolved: string;
+try {
+  const __filename = fileURLToPath(import.meta.url);
+  __dirname_resolved = path.dirname(__filename);
+} catch {
+  __dirname_resolved = process.cwd();
+}
 
 const router = new RpcRouter();
-let agentsDir = path.resolve(__dirname, "../../agents");
+let agentsDir = path.resolve(__dirname_resolved, "../../agents");
 let apiKey: string | undefined;
 
 // Track per-agent runtimes so we can load on demand

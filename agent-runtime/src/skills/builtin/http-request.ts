@@ -15,11 +15,15 @@ export const httpRequestSkill: SkillDefinition = {
       url: string; method: string; headers?: Record<string, string>; body?: string;
     };
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
       const response = await fetch(url, {
         method: method ?? "GET",
         headers,
         body: body && method !== "GET" ? body : undefined,
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const text = await response.text();
       return JSON.stringify({
         status: response.status,
@@ -28,6 +32,9 @@ export const httpRequestSkill: SkillDefinition = {
         body: text.slice(0, 50000),
       });
     } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        return JSON.stringify({ error: "HTTP request timed out after 30 seconds" });
+      }
       return JSON.stringify({ error: `HTTP request failed: ${(err as Error).message}` });
     }
   },
