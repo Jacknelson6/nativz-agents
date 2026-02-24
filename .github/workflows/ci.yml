@@ -44,4 +44,4 @@ jobs:
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
       - name: Tests
-        run: cd agent-runtime && node --test tests/runtime.test.ts
+        run: cd agent-runtime && npx tsx --test tests/runtime.test.ts
