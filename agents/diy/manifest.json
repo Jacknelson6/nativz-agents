@@ -15,8 +15,8 @@
       },
       {
         "provider": "openai",
-        "primary": "gpt-4.1",
-        "fast": "gpt-4.1-mini",
+        "primary": "gpt-4o",
+        "fast": "gpt-4o-mini",
         "priority": 2
       },
       {
