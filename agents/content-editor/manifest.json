@@ -10,7 +10,8 @@
   "skills": [
     "http-request",
     "file-write",
-    "web-search"
+    "web-search",
+    "stagehand-observe"
   ],
   "roles": [
     "admin",

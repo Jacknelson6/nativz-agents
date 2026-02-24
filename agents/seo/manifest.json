@@ -12,7 +12,9 @@
     "screenshot",
     "http-request",
     "file-write",
-    "web-search"
+    "web-search",
+    "stagehand-act",
+    "stagehand-extract"
   ],
   "roles": [
     "admin",
