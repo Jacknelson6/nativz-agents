@@ -20,6 +20,12 @@ const POPULAR_SERVERS: McpServerInfo[] = [
     argsTemplate: ["/path/to/allowed/dir"],
   },
   {
+    name: "fetch",
+    description: "Fetch web pages and convert to markdown/text",
+    package: "@anthropic-ai/mcp-server-fetch",
+    argsTemplate: [],
+  },
+  {
     name: "github",
     description: "GitHub API integration — repos, issues, PRs",
     package: "@modelcontextprotocol/server-github",

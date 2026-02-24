@@ -56,7 +56,7 @@ interface RawManifest {
   version: string;
   description: string;
   icon: string;
-  model?: { primary: string; fast: string };
+  model?: { primary: string; fast: string } | { providers: Array<{ provider: string; primary: string; fast: string; priority: number }>; routing?: unknown };
   systemPrompt: string;
   knowledge: string[];
   skills: string[];
@@ -74,10 +74,18 @@ export async function loadManifest(manifestPath: string): Promise<AgentManifest>
   const content = await fs.readFile(manifestPath, "utf-8");
   const raw = JSON.parse(content) as RawManifest;
 
-  // Derive model config from providers[] if model field is absent (v2 schema)
-  let model = raw.model;
-  if (!model && raw.providers && raw.providers.length > 0) {
-    // Sort by priority, pick the first
+  // Derive model config: handle both v1 ({primary, fast}) and v2 ({providers: [...]}) schemas
+  let model: { primary: string; fast: string } | undefined;
+
+  if (raw.model && "primary" in raw.model && "fast" in raw.model && typeof raw.model.primary === "string") {
+    // v1 format: { primary: "...", fast: "..." }
+    model = { primary: raw.model.primary, fast: raw.model.fast as string };
+  } else if (raw.model && "providers" in raw.model && Array.isArray(raw.model.providers) && raw.model.providers.length > 0) {
+    // v2 format: { providers: [{ provider, primary, fast, priority }] }
+    const sorted = [...raw.model.providers].sort((a, b) => a.priority - b.priority);
+    model = { primary: sorted[0].primary, fast: sorted[0].fast };
+  } else if (raw.providers && raw.providers.length > 0) {
+    // Top-level providers array
     const sorted = [...raw.providers].sort((a, b) => a.priority - b.priority);
     model = {
       primary: sorted[0].models.primary,

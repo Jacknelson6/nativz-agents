@@ -21,30 +21,30 @@ export default function Settings() {
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-black/60" onClick={toggleSettings} />
-      <div className="relative ml-auto w-full max-w-lg bg-surface border-l border-border h-full overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-semibold">Settings</h2>
-          <button onClick={toggleSettings} className="p-1.5 rounded-lg hover:bg-white/5 text-muted hover:text-white">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={toggleSettings} />
+      <div className="relative ml-auto w-full max-w-lg bg-zinc-900 border-l border-zinc-800/50 h-full overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800/50">
+          <h2 className="text-[15px] font-semibold text-zinc-100">Settings</h2>
+          <button onClick={toggleSettings} className="p-1.5 rounded-lg hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-200 transition-colors duration-150">
             <X size={18} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border px-5">
+        <div className="flex border-b border-zinc-800/50 px-5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-sm border-b-2 transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-[13px] border-b-2 transition-colors duration-150 ${
                   activeTab === tab.id
-                    ? 'border-accent text-accent'
-                    : 'border-transparent text-muted hover:text-white'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-200'
                 }`}
               >
-                <Icon size={14} />
+                <Icon size={13} />
                 {tab.label}
               </button>
             );
@@ -56,24 +56,28 @@ export default function Settings() {
             <div className="space-y-6">
               {/* API Key */}
               <section>
-                <div className="flex items-center gap-2 mb-3 text-sm font-medium"><Key size={14} /> API Key</div>
+                <div className="flex items-center gap-2 mb-3 text-[13px] font-medium text-zinc-200">
+                  <Key size={13} /> API Key
+                </div>
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-ant-..."
-                  className="w-full bg-black border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent/50"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-[13px] text-zinc-100 outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700/50 transition-all duration-200 placeholder:text-zinc-600"
                 />
-                <button onClick={handleSaveKey} className="mt-2 text-xs text-accent hover:underline">Save</button>
+                <button onClick={handleSaveKey} className="mt-2 text-[12px] text-blue-400 hover:text-blue-300 transition-colors">Save</button>
               </section>
 
               {/* Role */}
               <section>
-                <div className="flex items-center gap-2 mb-3 text-sm font-medium"><User size={14} /> Role</div>
+                <div className="flex items-center gap-2 mb-3 text-[13px] font-medium text-zinc-200">
+                  <User size={13} /> Role
+                </div>
                 <select
                   value={settings.role}
                   onChange={(e) => updateSettings({ role: e.target.value as any })}
-                  className="w-full bg-black border border-border rounded-lg px-3 py-2 text-sm outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-[13px] text-zinc-100 outline-none focus:border-zinc-700 transition-colors"
                 >
                   <option value="admin">Admin</option>
                   <option value="editor">Editor</option>
@@ -85,14 +89,18 @@ export default function Settings() {
 
               {/* Theme */}
               <section>
-                <div className="flex items-center gap-2 mb-3 text-sm font-medium"><Palette size={14} /> Theme</div>
+                <div className="flex items-center gap-2 mb-3 text-[13px] font-medium text-zinc-200">
+                  <Palette size={13} /> Theme
+                </div>
                 <div className="flex gap-2">
                   {(['dark', 'light'] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => updateSettings({ theme: t })}
-                      className={`px-4 py-2 rounded-lg text-sm capitalize border ${
-                        settings.theme === t ? 'border-accent text-accent bg-accent/10' : 'border-border text-muted hover:text-white'
+                      className={`px-4 py-2 rounded-lg text-[13px] capitalize border transition-colors duration-150 ${
+                        settings.theme === t
+                          ? 'border-blue-500/50 text-blue-400 bg-blue-500/10'
+                          : 'border-zinc-800 text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'
                       }`}
                     >
                       {t}
@@ -103,9 +111,11 @@ export default function Settings() {
 
               {/* About */}
               <section>
-                <div className="flex items-center gap-2 mb-3 text-sm font-medium"><Info size={14} /> About</div>
-                <p className="text-xs text-muted">Nativz Agents v0.1.0</p>
-                <p className="text-xs text-muted">Built with Tauri + React + Claude</p>
+                <div className="flex items-center gap-2 mb-3 text-[13px] font-medium text-zinc-200">
+                  <Info size={13} /> About
+                </div>
+                <p className="text-[12px] text-zinc-500">Nativz Agents v0.1.0</p>
+                <p className="text-[12px] text-zinc-600 mt-0.5">Built with Tauri + React + Claude</p>
               </section>
             </div>
           )}

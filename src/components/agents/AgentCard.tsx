@@ -10,12 +10,12 @@ export default function AgentCard({ agent, onSelect }: Props) {
   return (
     <button
       onClick={() => onSelect(agent)}
-      className="group text-left p-5 rounded-xl bg-surface border border-border hover:border-accent/30 transition-all duration-200"
+      className="group text-left p-5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all duration-150 hover:shadow-lg hover:shadow-zinc-950/50"
     >
-      <div className="text-3xl mb-3">{agent.icon}</div>
-      <h3 className="font-semibold text-sm mb-1">{agent.name}</h3>
-      <p className="text-xs text-muted leading-relaxed mb-4">{agent.description}</p>
-      <div className="flex items-center gap-1 text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="text-2xl mb-3">{agent.icon}</div>
+      <h3 className="font-semibold text-[13px] text-zinc-100 mb-1">{agent.name}</h3>
+      <p className="text-[12px] text-zinc-500 leading-relaxed mb-4 line-clamp-2">{agent.description}</p>
+      <div className="flex items-center gap-1.5 text-[12px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
         Start Chat <ArrowRight size={12} />
       </div>
     </button>

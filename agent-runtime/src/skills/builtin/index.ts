@@ -11,6 +11,8 @@ import { memoryReadSkill } from "./memory-read.js";
 import { memoryWriteSkill } from "./memory-write.js";
 import { memoryDeleteSkill } from "./memory-delete.js";
 import { memoryListSkill } from "./memory-list.js";
+import { supabaseQuerySkill } from "./supabase-query.js";
+import { supabaseInsertSkill, supabaseUpdateSkill, supabaseDeleteSkill } from "./supabase-write.js";
 import type { SkillDefinition } from "../registry.js";
 
 export const builtinSkills: SkillDefinition[] = [
@@ -27,4 +29,8 @@ export const builtinSkills: SkillDefinition[] = [
   memoryWriteSkill,
   memoryDeleteSkill,
   memoryListSkill,
+  supabaseQuerySkill,
+  supabaseInsertSkill,
+  supabaseUpdateSkill,
+  supabaseDeleteSkill,
 ];

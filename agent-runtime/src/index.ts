@@ -1,8 +1,10 @@
+import "dotenv/config";
 import { RpcRouter } from "./rpc/router.js";
 import { RpcServer } from "./rpc/server.js";
 import { AgentRuntime } from "./agent/runtime.js";
 import { listAgents } from "./agent/loader.js";
 import type { EntityType } from "./memory/structured.js";
+import { supabase } from "./integrations/supabase.js";
 import * as path from "node:path";
 
 const router = new RpcRouter();
@@ -28,6 +30,13 @@ router.register("initialize", async (params) => {
   }
   if (params.apiKey) {
     apiKey = params.apiKey as string;
+  }
+  // Configure Supabase if credentials provided
+  const supabaseUrl = (params.supabaseUrl as string) || process.env.SUPABASE_URL;
+  const supabaseKey = (params.supabaseAnonKey as string) || process.env.SUPABASE_ANON_KEY;
+  if (supabaseUrl && supabaseKey) {
+    supabase.configure({ url: supabaseUrl, anonKey: supabaseKey });
+    process.stderr.write("agent-runtime: Supabase configured\n");
   }
   const agentId = params.agentId as string | undefined;
   if (!agentId) {
@@ -58,10 +67,19 @@ router.register("send_message", async (params) => {
     throw new Error("API key not configured. Please set your API key in Settings.");
   }
   const rt = await getOrLoadRuntime(agentId);
-  const response = await rt.sendMessage(message, userId, (type, data) => {
-    emitNotification("stream_chunk", { requestId, agentId, type, ...data });
-  });
-  return { response };
+  try {
+    const response = await rt.sendMessage(message, userId, (type, data) => {
+      emitNotification("stream_chunk", { requestId, agentId, type, ...data });
+    });
+    return { response };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`agent-runtime: send_message error: ${errMsg}\n`);
+    if (err instanceof Error && err.stack) {
+      process.stderr.write(`agent-runtime: ${err.stack}\n`);
+    }
+    throw err;
+  }
 });
 
 router.register("list_agents", async () => {
@@ -82,6 +100,14 @@ router.register("get_history", async (params) => {
     return { messages: runtimes.get(agentId)!.getHistory() };
   }
   return { messages: [] };
+});
+
+router.register("configure_supabase", async (params) => {
+  const url = params.supabaseUrl as string;
+  const key = params.supabaseAnonKey as string;
+  if (!url || !key) throw new Error("supabaseUrl and supabaseAnonKey are required");
+  supabase.configure({ url, anonKey: key });
+  return { status: "ok" };
 });
 
 router.register("set_api_key", async (params) => {

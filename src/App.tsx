@@ -56,7 +56,7 @@ export default function App() {
   }, []);
 
   if (!loaded) {
-    return <div className="flex items-center justify-center h-screen bg-black text-muted text-sm">Loading...</div>;
+    return <div className="flex items-center justify-center h-screen bg-zinc-950 text-zinc-500 text-sm">Loading...</div>;
   }
 
   if (currentView === 'onboarding') {

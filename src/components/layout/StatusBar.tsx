@@ -12,10 +12,7 @@ import {
 import { useModelStore } from '../../stores/modelStore';
 import { useChatStore } from '../../stores/chatStore';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function estimateTokens(text: string): number {
-  // Rough: ~4 chars per token for English text
   return Math.ceil(text.length / 4);
 }
 
@@ -43,13 +40,10 @@ function StatusDot({ status }: { status: HealthStatus }) {
   );
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
-
 export default function StatusBar() {
   const { currentProviderId, currentModelId, availableProviders } = useModelStore();
   const { messages } = useChatStore();
 
-  // Find current provider info
   const currentProvider = useMemo(
     () => availableProviders.find((p) => p.id === currentProviderId),
     [availableProviders, currentProviderId]
@@ -60,12 +54,10 @@ export default function StatusBar() {
     [currentProvider, currentModelId]
   );
 
-  // Token count for current conversation
   const tokenCount = useMemo(() => {
     return messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
   }, [messages]);
 
-  // Estimated cost
   const estimatedCost = useMemo(() => {
     if (!currentModel?.costPerInputToken) return 0;
     const inputTokens = messages
@@ -86,10 +78,10 @@ export default function StatusBar() {
   const latencyMs = health?.latencyMs ?? 0;
 
   return (
-    <div className="flex items-center gap-1 px-4 py-1.5 bg-zinc-950 border-t border-white/5 text-[11px] text-zinc-500 select-none">
+    <div className="flex items-center gap-1 px-4 py-1.5 bg-zinc-900/80 border-t border-zinc-800/50 text-[11px] text-zinc-500 select-none">
       {/* Model + Provider */}
       <div className="flex items-center gap-1.5 mr-3">
-        <Cpu size={11} />
+        <Cpu size={10} className="text-zinc-600" />
         <span className="text-zinc-400">
           {currentModel?.name ?? currentModelId ?? 'No model'}
         </span>
@@ -100,55 +92,50 @@ export default function StatusBar() {
         )}
       </div>
 
-      {/* Divider */}
-      <div className="w-px h-3 bg-white/5" />
+      <div className="w-px h-2.5 bg-zinc-800" />
 
       {/* Token count */}
       <div className="flex items-center gap-1 mx-3">
-        <Hash size={10} />
+        <Hash size={9} className="text-zinc-600" />
         <span>{tokenCount.toLocaleString()} tokens</span>
       </div>
 
-      <div className="w-px h-3 bg-white/5" />
+      <div className="w-px h-2.5 bg-zinc-800" />
 
       {/* Cost */}
       <div className="flex items-center gap-1 mx-3">
-        <DollarSign size={10} />
+        <DollarSign size={9} className="text-zinc-600" />
         <span>{formatCost(estimatedCost)}</span>
       </div>
 
-      <div className="w-px h-3 bg-white/5" />
+      <div className="w-px h-2.5 bg-zinc-800" />
 
       {/* Connection status */}
       <div className="flex items-center gap-1.5 mx-3">
-        {healthStatus === 'down' ? <WifiOff size={10} /> : <Wifi size={10} />}
+        {healthStatus === 'down' ? <WifiOff size={10} className="text-zinc-600" /> : <Wifi size={10} className="text-zinc-600" />}
         <StatusDot status={healthStatus} />
         <span className="capitalize">{healthStatus}</span>
       </div>
 
-      {/* Latency */}
       {latencyMs > 0 && (
         <>
-          <div className="w-px h-3 bg-white/5" />
+          <div className="w-px h-2.5 bg-zinc-800" />
           <div className="flex items-center gap-1 mx-3">
-            <Clock size={10} />
+            <Clock size={9} className="text-zinc-600" />
             <span>{formatLatency(latencyMs)}</span>
           </div>
         </>
       )}
 
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Keyboard shortcuts hint */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
-          <Zap size={9} />
-          <kbd className="flex items-center gap-0.5 text-[9px]">
-            <Command size={8} />K
-          </kbd>
-          <span>Commands</span>
-        </div>
+      {/* Keyboard hint */}
+      <div className="flex items-center gap-1 text-zinc-600">
+        <Zap size={8} />
+        <kbd className="flex items-center gap-0.5 text-[9px]">
+          <Command size={8} />K
+        </kbd>
+        <span className="text-[10px]">Commands</span>
       </div>
     </div>
   );

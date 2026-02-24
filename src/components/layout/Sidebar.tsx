@@ -37,7 +37,6 @@ export default function Sidebar() {
       const full = await loadConversation(conv.id);
       const agent = agents.find((a) => a.id === conv.agentId);
       if (agent) selectAgent(agent);
-      // Load messages into chat store
       useChatStore.setState((s) => ({
         messagesByAgent: { ...s.messagesByAgent, [conv.agentId]: full.messages },
         messages: full.messages,
@@ -68,119 +67,122 @@ export default function Sidebar() {
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
+  const navItems = [
+    { view: 'home' as const, icon: Home, label: 'Home' },
+    { view: 'analytics' as const, icon: BarChart3, label: 'Analytics' },
+    { view: 'knowledge' as const, icon: BookOpen, label: 'Knowledge' },
+    { view: 'marketplace' as const, icon: Store, label: 'Marketplace' },
+  ];
+
   return (
-    <div className="w-60 h-screen bg-surface border-r border-border flex flex-col">
+    <div className="w-[260px] h-screen bg-zinc-900 flex flex-col select-none">
       {/* Logo */}
-      <div className="p-4 border-b border-border">
-        <h1 className="text-lg font-bold tracking-tight">Nativz Agents</h1>
-        <p className="text-xs text-muted mt-0.5">AI-powered agency tools</p>
+      <div className="px-5 pt-5 pb-4">
+        <h1 className="text-[15px] font-semibold tracking-tight text-zinc-100">Nativz Agents</h1>
+        <p className="text-[11px] text-zinc-500 mt-0.5">AI-powered agency tools</p>
       </div>
 
-      {/* New Chat + Nav */}
-      <div className="p-2 space-y-0.5">
+      {/* New Chat */}
+      <div className="px-3 pb-1">
         <button
           onClick={handleNewChat}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-accent/10 text-accent hover:bg-accent/20 transition-colors font-medium"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/15 transition-colors duration-150"
         >
-          <Plus size={16} /> New Chat
-        </button>
-        <button
-          onClick={() => { selectAgent(null); setView('home'); }}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-            currentView === 'home' ? 'text-white bg-white/5' : 'text-muted hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Home size={16} /> Home
-        </button>
-        <button
-          onClick={() => setView('analytics')}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-            currentView === 'analytics' ? 'text-white bg-white/5' : 'text-muted hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <BarChart3 size={16} /> Analytics
-        </button>
-        <button
-          onClick={() => setView('knowledge')}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-            currentView === 'knowledge' ? 'text-white bg-white/5' : 'text-muted hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <BookOpen size={16} /> Knowledge
-        </button>
-        <button
-          onClick={() => setView('marketplace')}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-            currentView === 'marketplace' ? 'text-white bg-white/5' : 'text-muted hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Store size={16} /> Marketplace
+          <Plus size={15} strokeWidth={2.5} /> New Chat
         </button>
       </div>
 
-      {/* Agent list */}
-      <div className="px-2 pb-1">
-        <p className="text-[11px] uppercase tracking-wider text-muted px-3 py-2">Agents</p>
-        {agents.map((agent) => (
-          <button
-            key={agent.id}
-            onClick={() => { selectAgent(agent); setView('chat'); clearMessages(); }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-              selectedAgent?.id === agent.id && currentView === 'chat'
-                ? 'bg-accent/10 text-accent'
-                : 'text-muted hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <span className="text-base">{agent.icon}</span>
-            <span className="truncate">{agent.name}</span>
-          </button>
-        ))}
+      {/* Nav */}
+      <div className="px-3 py-1 space-y-0.5">
+        {navItems.map(({ view, icon: Icon, label }) => {
+          const isActive = currentView === view;
+          return (
+            <button
+              key={view}
+              onClick={() => { if (view === 'home') selectAgent(null); setView(view); }}
+              className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[13px] transition-colors duration-150 ${
+                isActive
+                  ? 'text-zinc-100 bg-zinc-800/80'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+              }`}
+            >
+              <Icon size={15} strokeWidth={isActive ? 2 : 1.5} />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Agents */}
+      <div className="px-3 mt-3">
+        <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium px-3 py-2">Agents</p>
+        <div className="space-y-0.5">
+          {agents.map((agent) => {
+            const isActive = selectedAgent?.id === agent.id && currentView === 'chat';
+            return (
+              <button
+                key={agent.id}
+                onClick={() => { selectAgent(agent); setView('chat'); clearMessages(); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[13px] transition-colors duration-150 ${
+                  isActive
+                    ? 'text-blue-400 bg-blue-500/10'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                }`}
+              >
+                <span className="text-sm flex-shrink-0">{agent.icon}</span>
+                <span className="truncate">{agent.name}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Conversations */}
-      <div className="flex-1 overflow-y-auto px-2">
-        <p className="text-[11px] uppercase tracking-wider text-muted px-3 py-2">Recent Chats</p>
+      <div className="flex-1 overflow-y-auto px-3 mt-3">
+        <p className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium px-3 py-2">Recent</p>
         {conversations.length === 0 ? (
-          <p className="text-[11px] text-muted px-3 py-1">No conversations yet</p>
+          <p className="text-[11px] text-zinc-600 px-3 py-1.5">No conversations yet</p>
         ) : (
-          conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className="group flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-              onClick={() => handleResumeConversation(conv)}
-            >
-              <MessageSquare size={13} className="text-muted shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs truncate">{conv.title}</p>
-                <p className="text-[10px] text-muted">{formatTime(conv.updatedAt)}</p>
+          <div className="space-y-0.5">
+            {conversations.map((conv) => (
+              <div
+                key={conv.id}
+                className="group flex items-center gap-2 px-3 py-[7px] rounded-lg hover:bg-zinc-800/40 transition-colors duration-150 cursor-pointer"
+                onClick={() => handleResumeConversation(conv)}
+              >
+                <MessageSquare size={12} className="text-zinc-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] text-zinc-300 truncate">{conv.title}</p>
+                  <p className="text-[10px] text-zinc-600">{formatTime(conv.updatedAt)}</p>
+                </div>
+                {deleteConfirm === conv.id ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); }}
+                    className="text-[9px] text-red-400 font-medium px-1.5 py-0.5 rounded bg-red-500/10"
+                  >
+                    delete?
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(conv.id); }}
+                    className="p-0.5 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-150"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
               </div>
-              {deleteConfirm === conv.id ? (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); }}
-                  className="text-[9px] text-error font-medium px-1"
-                >
-                  delete?
-                </button>
-              ) : (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setDeleteConfirm(conv.id); }}
-                  className="p-0.5 text-muted hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={11} />
-                </button>
-              )}
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Bottom nav */}
-      <div className="p-2 border-t border-border space-y-0.5">
+      {/* Bottom */}
+      <div className="px-3 py-3 border-t border-zinc-800/50">
         <button
           onClick={toggleSettings}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted hover:text-white hover:bg-white/5 transition-colors"
+          className="w-full flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[13px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 transition-colors duration-150"
         >
-          <Settings size={16} /> Settings
+          <Settings size={15} strokeWidth={1.5} /> Settings
         </button>
       </div>
     </div>

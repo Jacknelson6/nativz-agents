@@ -12,31 +12,34 @@ export default function TopBar() {
 
   return (
     <>
-      <div className="h-14 border-b border-border flex items-center justify-between px-5">
-        <div>
+      <div className="h-12 border-b border-zinc-800/50 flex items-center justify-between px-5 bg-zinc-950/80 backdrop-blur-sm">
+        <div className="flex items-center gap-2.5">
           {selectedAgent ? (
             <>
-              <h2 className="text-sm font-semibold">{selectedAgent.icon} {selectedAgent.name}</h2>
-              <p className="text-xs text-muted">{selectedAgent.description}</p>
+              <span className="text-base">{selectedAgent.icon}</span>
+              <div>
+                <h2 className="text-[13px] font-semibold text-zinc-100 leading-tight">{selectedAgent.name}</h2>
+                <p className="text-[11px] text-zinc-500 leading-tight">{selectedAgent.description}</p>
+              </div>
             </>
           ) : (
-            <h2 className="text-sm font-semibold">Home</h2>
+            <h2 className="text-[13px] font-semibold text-zinc-100">Home</h2>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <ModelSelector />
           <button
             onClick={() => setMemoryOpen(true)}
-            className="p-2 rounded-lg text-muted hover:text-white hover:bg-white/5 transition-colors"
+            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors duration-150"
             title="Memory Inspector"
           >
-            <Brain size={18} />
+            <Brain size={16} />
           </button>
           <button
             onClick={toggleSettings}
-            className="p-2 rounded-lg text-muted hover:text-white hover:bg-white/5 transition-colors"
+            className="p-2 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors duration-150"
           >
-            <Settings size={18} />
+            <Settings size={16} />
           </button>
         </div>
       </div>

@@ -49,14 +49,46 @@ impl SidecarManager {
             return Ok(());
         }
 
-        let mut child = Command::new("npx")
-            .arg("tsx")
-            .arg(&self.runtime_path)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .current_dir(std::path::Path::new(&self.runtime_path).parent().unwrap().parent().unwrap())
-            .spawn()
+        // Try compiled binary first (production/DMG), fall back to npx tsx (dev)
+        let runtime_dir = std::path::Path::new(&self.runtime_path)
+            .parent().unwrap()
+            .parent().unwrap();
+
+        let child_result = {
+            // Check for compiled sidecar binary
+            let binary_path_dev = runtime_dir.join("src-tauri").join("binaries").join(format!(
+                "agent-runtime-{}-apple-darwin",
+                std::env::consts::ARCH
+            ));
+
+            let found_binary: Option<std::path::PathBuf> = if binary_path_dev.exists() {
+                Some(binary_path_dev)
+            } else {
+                None
+            };
+
+            if let Some(binary_path) = found_binary {
+                eprintln!("[sidecar] Using compiled binary: {:?}", binary_path);
+                Command::new(binary_path)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .current_dir(runtime_dir)
+                    .spawn()
+            } else {
+                eprintln!("[sidecar] No binary found, falling back to npx tsx");
+                Command::new("npx")
+                    .arg("tsx")
+                    .arg(&self.runtime_path)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .current_dir(runtime_dir)
+                    .spawn()
+            }
+        };
+
+        let mut child = child_result
             .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
 
         let stdout = child.stdout.take().ok_or("No stdout")?;
