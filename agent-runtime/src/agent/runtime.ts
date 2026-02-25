@@ -5,6 +5,7 @@ import { AnthropicProvider } from "../llm/providers/anthropic.js";
 import { OpenAIProvider } from "../llm/providers/openai.js";
 import { OpenRouterProvider } from "../llm/providers/openrouter.js";
 import { OllamaProvider } from "../llm/providers/ollama.js";
+import { GeminiProvider } from "../llm/providers/gemini.js";
 import type { UnifiedMessage, UnifiedToolDefinition, UnifiedStreamCallbacks, UnifiedLlmResponse } from "../llm/providers/types.js";
 import { CostTracker as LlmCostTracker } from "../llm/cost-tracker.js";
 import { SkillRegistry } from "../skills/registry.js";
@@ -132,9 +133,6 @@ export class AgentRuntime {
     this.providerRegistry.register(new OpenAIProvider({ 
       apiKey: apiKeys['openai'] || process.env.OPENAI_API_KEY 
     }));
-import { GeminiProvider } from "../llm/providers/gemini.js";
-
-// ... (in registerProviders)
     this.providerRegistry.register(new OpenRouterProvider({ 
       apiKey: apiKeys['openrouter'] || process.env.OPENROUTER_API_KEY 
     }));
