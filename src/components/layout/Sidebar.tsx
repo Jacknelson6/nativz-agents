@@ -92,7 +92,15 @@ export default function AppSidebar() {
 
   const handleRename = async (id: string) => {
     const title = editTitle.trim();
-    if (!title || title === conversations.find(c => c.id === id)?.title) {
+    if (!title) {
+      setEditingId(null);
+      return;
+    }
+    if (title.length > 100) {
+      emitNotification({ type: 'error', title: 'Rename Failed', message: 'Title is too long (max 100 chars).' });
+      return;
+    }
+    if (title === conversations.find(c => c.id === id)?.title) {
       setEditingId(null);
       return;
     }

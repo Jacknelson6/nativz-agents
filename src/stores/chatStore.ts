@@ -75,7 +75,7 @@ export const useChatStore = create<ChatState>((set, get) => {
     bookmarkedMessages: new Set(JSON.parse(localStorage.getItem('bookmarks') ?? '[]')),
     conversationMetaByAgent: {},
 
-    toggleBookmark: (messageId) => {
+    toggleBookmark: (messageId: string) => {
       set((s) => {
         const next = new Set(s.bookmarkedMessages);
         if (next.has(messageId)) {
@@ -88,7 +88,7 @@ export const useChatStore = create<ChatState>((set, get) => {
       });
     },
 
-    isBookmarked: (messageId) => {
+    isBookmarked: (messageId: string) => {
       return get().bookmarkedMessages.has(messageId);
     },
 
@@ -133,7 +133,7 @@ export const useChatStore = create<ChatState>((set, get) => {
       }
     },
 
-    setAgent: (agentId) => {
+    setAgent: (agentId: string) => {
       const msgs = get().messagesByAgent[agentId] ?? [];
       set({ currentAgentId: agentId, messages: msgs });
     },
@@ -258,10 +258,9 @@ export const useChatStore = create<ChatState>((set, get) => {
           };
         });
       }
-      // message_done is handled when the invoke() resolves
     },
 
-    sendMessage: async (agentId, content) => {
+    sendMessage: async (agentId: string, content: string) => {
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: 'user',
@@ -269,7 +268,6 @@ export const useChatStore = create<ChatState>((set, get) => {
         timestamp: Date.now(),
       };
 
-      // Create placeholder assistant message for streaming
       const assistantMsg: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -290,16 +288,14 @@ export const useChatStore = create<ChatState>((set, get) => {
 
       try {
         const reply = await sendTauriMessage(agentId, content);
-        // Finalize: replace streaming message content with final response
         set((s) => {
           const agentMsgs = [...(s.messagesByAgent[agentId] ?? [])];
           const idx = agentMsgs.findIndex((m) => m.id === assistantMsg.id);
           if (idx !== -1) {
-            // Use streamed content if we got some, otherwise use the RPC response
             const streamedContent = agentMsgs[idx].content;
             agentMsgs[idx] = {
               ...agentMsgs[idx],
-              content: streamedContent || reply.content,
+              content: (streamedContent || reply.content || 'No response received.').trim(),
               timestamp: Date.now(),
             };
           }
@@ -308,21 +304,18 @@ export const useChatStore = create<ChatState>((set, get) => {
             messages: s.currentAgentId === agentId ? agentMsgs : s.messages,
             isStreaming: false,
             streamingMessageId: null,
+            thinkingSteps: [],
           };
         });
       } catch (err) {
-        // Extract meaningful error message from the error chain
         let errorMessage = 'Failed to get response.';
         if (err instanceof Error) {
           const msg = err.message;
-          // Strip Tauri invoke wrappers like "command send_message returned error: ..."
           const tauriMatch = msg.match(/returned error:\s*(.+)/i);
           errorMessage = tauriMatch ? tauriMatch[1].trim() : msg;
         } else if (typeof err === 'string') {
           errorMessage = err;
         }
-        console.error('[chat] sendMessage error:', errorMessage);
-        // Replace placeholder with error
         set((s) => {
           const agentMsgs = [...(s.messagesByAgent[agentId] ?? [])];
           const idx = agentMsgs.findIndex((m) => m.id === assistantMsg.id);
@@ -338,6 +331,7 @@ export const useChatStore = create<ChatState>((set, get) => {
             messages: s.currentAgentId === agentId ? agentMsgs : s.messages,
             isStreaming: false,
             streamingMessageId: null,
+            thinkingSteps: [],
           };
         });
         emitNotification({
@@ -348,7 +342,7 @@ export const useChatStore = create<ChatState>((set, get) => {
       }
     },
 
-    clearMessages: (agentId) => {
+    clearMessages: (agentId?: string) => {
       if (agentId) {
         set((s) => {
           const updated = { ...s.messagesByAgent };

@@ -272,6 +272,7 @@ export class AgentRuntime {
     onStreamNotify?: (type: string, data: Record<string, unknown>) => void
   ): Promise<string> {
     if (!this.manifest) throw new Error("No agent loaded");
+    if (!userMessage?.trim()) throw new Error("Message cannot be empty");
 
     // Auto-start conversation if none active
     if (!this.conversationId) {

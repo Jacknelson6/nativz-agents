@@ -116,39 +116,49 @@ export class ProviderRegistry {
     callbacks?: UnifiedStreamCallbacks,
     stream = false
   ): Promise<UnifiedLlmResponse> {
-    // Try preferred provider first
-    if (preferredProvider) {
-      const provider = this.providers.get(preferredProvider);
-      if (provider) {
-        try {
-          const response = stream
-            ? await provider.streamCall(request, callbacks)
-            : await provider.call(request);
-          this.recordLatency(preferredProvider, response.latencyMs);
-          return response;
-        } catch (err) {
-          console.error(`Provider ${preferredProvider} failed:`, err);
+    // Add overall timeout safety
+    const TIMEOUT_MS = 60_000; // 60 seconds
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error("LLM request timed out")), TIMEOUT_MS)
+    );
+
+    const execute = async () => {
+      // Try preferred provider first
+      if (preferredProvider) {
+        const provider = this.providers.get(preferredProvider);
+        if (provider) {
+          try {
+            const response = stream
+              ? await provider.streamCall(request, callbacks)
+              : await provider.call(request);
+            this.recordLatency(preferredProvider, response.latencyMs);
+            return response;
+          } catch (err) {
+            console.error(`Provider ${preferredProvider} failed:`, err);
+          }
         }
       }
-    }
 
-    // Try fallback chain
-    for (const entry of this.fallbackChain) {
-      const provider = this.providers.get(entry.providerName);
-      if (!provider) continue;
+      // Try fallback chain
+      for (const entry of this.fallbackChain) {
+        const provider = this.providers.get(entry.providerName);
+        if (!provider) continue;
 
-      try {
-        const fallbackRequest = { ...request, model: entry.modelId };
-        const response = stream
-          ? await provider.streamCall(fallbackRequest, callbacks)
-          : await provider.call(fallbackRequest);
-        this.recordLatency(entry.providerName, response.latencyMs);
-        return response;
-      } catch (err) {
-        console.error(`Fallback provider ${entry.providerName} failed:`, err);
+        try {
+          const fallbackRequest = { ...request, model: entry.modelId };
+          const response = stream
+            ? await provider.streamCall(fallbackRequest, callbacks)
+            : await provider.call(fallbackRequest);
+          this.recordLatency(entry.providerName, response.latencyMs);
+          return response;
+        } catch (err) {
+          console.error(`Fallback provider ${entry.providerName} failed:`, err);
+        }
       }
-    }
 
-    throw new Error("All providers failed. No response available.");
+      throw new Error("All providers failed. No response available.");
+    };
+
+    return Promise.race([execute(), timeoutPromise]);
   }
 }
