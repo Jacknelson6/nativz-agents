@@ -5,8 +5,9 @@ import { useChatStore } from "../../stores/chatStore";
 import {
   listConversations,
   deleteConversation as deleteTauriConv,
-  loadConversation,
+  renameConversation,
 } from "../../lib/tauri";
+import { emitNotification } from "./NotificationCenter";
 import type { ConversationSummary } from "../../lib/types";
 import {
   Home,
@@ -17,6 +18,7 @@ import {
   BookOpen,
   Store,
   Settings,
+  Search,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,17 +40,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export default function AppSidebar() {
   const { agents, selectedAgent, selectAgent } = useAgentStore();
   const { setView, toggleSettings, currentView } = useAppStore();
-  const { clearMessages } = useChatStore();
+  const { clearMessages, loadConversationMessages, currentConversationId } = useChatStore();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [selectedAgent?.id]);
 
   const fetchConversations = async () => {
     try {
-      const convs = await listConversations();
+      const convs = await listConversations(selectedAgent?.id);
       setConversations(convs);
     } catch {
       setConversations([]);
@@ -63,17 +68,9 @@ export default function AppSidebar() {
 
   const handleResumeConversation = async (conv: ConversationSummary) => {
     try {
-      const full = await loadConversation(conv.id);
       const agent = agents.find((a) => a.id === conv.agentId);
       if (agent) selectAgent(agent);
-      useChatStore.setState((s) => ({
-        messagesByAgent: {
-          ...s.messagesByAgent,
-          [conv.agentId]: full.messages,
-        },
-        messages: full.messages,
-        currentAgentId: conv.agentId,
-      }));
+      await loadConversationMessages(conv.id, conv.agentId);
       setView("chat");
     } catch {
       // ignore
@@ -84,11 +81,34 @@ export default function AppSidebar() {
     try {
       await deleteTauriConv(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
+      emitNotification({ type: 'success', title: 'Deleted', message: 'Conversation deleted.' });
     } catch {
       // ignore
     }
     setDeleteConfirm(null);
   };
+
+  const handleRename = async (id: string) => {
+    const title = editTitle.trim();
+    if (!title || title === conversations.find(c => c.id === id)?.title) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      await renameConversation(id, title);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, title } : c))
+      );
+      emitNotification({ type: 'success', title: 'Renamed', message: 'Conversation renamed.' });
+    } catch {
+      // ignore
+    }
+    setEditingId(null);
+  };
+
+  const filteredConversations = conversations.filter((c) =>
+    c.title.toLowerCase().includes(search.toLowerCase())
+  );
 
   const formatTime = (ts: number) => {
     const d = new Date(ts);
@@ -197,55 +217,97 @@ export default function AppSidebar() {
 
         {/* Recent Conversations */}
         <SidebarGroup>
-          <SidebarGroupLabel>Recent</SidebarGroupLabel>
+          <div className="flex items-center justify-between px-3 mb-1 group-data-[collapsible=icon]:hidden">
+            <SidebarGroupLabel className="p-0">Recent</SidebarGroupLabel>
+            {conversations.length > 0 && (
+              <div className="flex items-center gap-1 bg-muted/50 border border-border/50 rounded px-1.5 py-0.5">
+                <Search size={10} className="text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter..."
+                  className="bg-transparent text-[10px] outline-none w-16 placeholder:text-muted-foreground/50"
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setSearch("");
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <SidebarGroupContent>
             <ScrollArea className="max-h-[240px]">
               <SidebarMenu>
-                {conversations.length === 0 ? (
+                {filteredConversations.length === 0 ? (
                   <p className="text-xs text-muted-foreground px-3 py-2 group-data-[collapsible=icon]:hidden">
-                    No conversations yet
+                    {search ? "No matches found" : "No conversations yet"}
                   </p>
                 ) : (
-                  conversations.map((conv) => (
-                    <SidebarMenuItem key={conv.id}>
-                      <SidebarMenuButton
-                        onClick={() => handleResumeConversation(conv)}
-                        tooltip={conv.title}
-                        className="group/conv"
-                      >
-                        <MessageSquare size={14} className="shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs truncate block">
-                            {conv.title}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground block">
-                            {formatTime(conv.updatedAt)}
-                          </span>
-                        </div>
-                        {deleteConfirm === conv.id ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteConversation(conv.id);
-                            }}
-                            className="text-[9px] text-destructive font-medium px-1.5 py-0.5 rounded bg-destructive/10"
-                          >
-                            delete?
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirm(conv.id);
-                            }}
-                            className="p-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover/conv:opacity-100 transition-all"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))
+                  filteredConversations.map((conv) => {
+                    const isActive = currentConversationId === conv.id;
+                    return (
+                      <SidebarMenuItem key={conv.id}>
+                        <SidebarMenuButton
+                          onClick={() => handleResumeConversation(conv)}
+                          tooltip={conv.title}
+                          isActive={isActive}
+                          className="group/conv"
+                          onDoubleClick={() => {
+                            setEditingId(conv.id);
+                            setEditTitle(conv.title);
+                          }}
+                        >
+                          <MessageSquare size={14} className="shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            {editingId === conv.id ? (
+                              <input
+                                autoFocus
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onBlur={() => handleRename(conv.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleRename(conv.id);
+                                  if (e.key === "Escape") setEditingId(null);
+                                }}
+                                className="bg-background border border-primary/30 rounded px-1 w-full text-xs outline-none"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <>
+                                <span className="text-xs truncate block">
+                                  {conv.title}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground block">
+                                  {formatTime(conv.updatedAt)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          {deleteConfirm === conv.id ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteConversation(conv.id);
+                              }}
+                              className="text-[9px] text-destructive font-medium px-1.5 py-0.5 rounded bg-destructive/10"
+                            >
+                              delete?
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirm(conv.id);
+                              }}
+                              className="p-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover/conv:opacity-100 transition-all"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          )}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })
                 )}
               </SidebarMenu>
             </ScrollArea>

@@ -63,10 +63,6 @@ pub fn list_agents(app: tauri::AppHandle) -> Vec<Agent> {
 
 fn fallback_agents() -> Vec<Agent> {
     vec![
-        Agent { id: "content-editor".into(), name: "Content Editor".into(), description: "Edit and refine content for social media, blogs, and marketing materials.".into(), icon: "✏️".into(), category: "content".into() },
-        Agent { id: "seo".into(), name: "SEO Strategist".into(), description: "Optimize content for search engines with keyword research and technical SEO.".into(), icon: "🔍".into(), category: "marketing".into() },
-        Agent { id: "ads".into(), name: "Paid Media".into(), description: "Create and manage ad campaigns across Google, Meta, and TikTok.".into(), icon: "📢".into(), category: "marketing".into() },
-        Agent { id: "account-manager".into(), name: "Account Manager".into(), description: "Track client deliverables, deadlines, and communication.".into(), icon: "📋".into(), category: "operations".into() },
-        Agent { id: "diy".into(), name: "DIY Assistant".into(), description: "General-purpose agent for custom tasks and workflows.".into(), icon: "🛠️".into(), category: "utility".into() },
+        Agent { id: "seo".into(), name: "SEO Agent".into(), description: "Expert-level SEO consultant covering technical SEO, on-page optimization, link building, content strategy, local SEO, and competitive analysis.".into(), icon: "\u{1f50d}".into(), category: "marketing".into() },
     ]
 }

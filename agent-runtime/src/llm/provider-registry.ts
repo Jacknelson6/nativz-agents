@@ -15,6 +15,8 @@ export interface FallbackChainEntry {
 export class ProviderRegistry {
   private providers: Map<string, LlmProvider> = new Map();
   private healthCache: Map<string, ProviderHealth> = new Map();
+  private healthCacheTime: Map<string, number> = new Map();
+  private static HEALTH_TTL_MS = 60_000; // 60 seconds
   private fallbackChain: FallbackChainEntry[] = [];
   private latencyHistory: Map<string, number[]> = new Map();
 
@@ -25,6 +27,7 @@ export class ProviderRegistry {
   unregister(name: string): void {
     this.providers.delete(name);
     this.healthCache.delete(name);
+    this.healthCacheTime.delete(name);
   }
 
   get(name: string): LlmProvider | undefined {
@@ -79,11 +82,24 @@ export class ProviderRegistry {
     return history.reduce((a, b) => a + b, 0) / history.length;
   }
 
-  async healthCheckAll(): Promise<Map<string, ProviderHealth>> {
+  async healthCheckAll(force = false): Promise<Map<string, ProviderHealth>> {
     const results = new Map<string, ProviderHealth>();
+    const now = Date.now();
     const checks = Array.from(this.providers.entries()).map(async ([name, provider]) => {
+      // Skip if recently checked and not forced
+      if (!force) {
+        const lastCheck = this.healthCacheTime.get(name);
+        if (lastCheck && now - lastCheck < ProviderRegistry.HEALTH_TTL_MS) {
+          const cached = this.healthCache.get(name);
+          if (cached) {
+            results.set(name, cached);
+            return;
+          }
+        }
+      }
       const health = await provider.healthCheck();
       this.healthCache.set(name, health);
+      this.healthCacheTime.set(name, now);
       results.set(name, health);
     });
     await Promise.allSettled(checks);

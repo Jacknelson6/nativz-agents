@@ -8,7 +8,7 @@ interface ModelState {
   availableProviders: Provider[];
   loading: boolean;
   refreshProviders: (agentId?: string) => Promise<void>;
-  setProvider: (agentId: string, providerId: string) => Promise<void>;
+  setProvider: (agentId: string, providerId: string, modelId?: string) => Promise<void>;
 }
 
 export const useModelStore = create<ModelState>((set, get) => ({
@@ -38,12 +38,13 @@ export const useModelStore = create<ModelState>((set, get) => ({
     }
   },
 
-  setProvider: async (agentId, providerId) => {
+  setProvider: async (agentId, providerId, modelId?: string) => {
     await setTauriProvider(agentId, providerId);
     const provider = get().availableProviders.find((p) => p.id === providerId);
+    const resolvedModelId = modelId ?? provider?.models[0]?.id ?? null;
     set({
       currentProviderId: providerId,
-      currentModelId: provider?.models[0]?.id ?? null,
+      currentModelId: resolvedModelId,
     });
   },
 }));

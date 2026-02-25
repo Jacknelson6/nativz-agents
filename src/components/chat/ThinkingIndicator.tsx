@@ -60,28 +60,36 @@ function StepItem({ step }: { step: ThinkingStep }) {
 }
 
 export default function ThinkingIndicator({ steps, isActive }: ThinkingIndicatorProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   if (steps.length === 0 && !isActive) return null;
 
+  const activeSteps = steps.filter(s => s.status === 'active').length;
+  const doneSteps = steps.filter(s => s.status === 'done').length;
+
   return (
-    <div className="my-2 rounded-lg border border-border bg-card/50 overflow-hidden transition-all duration-300">
+    <div className={`my-3 rounded-lg border overflow-hidden transition-all duration-300 ${
+      isActive ? "border-blue-400/20 bg-blue-400/5" : "border-border bg-card/50"
+    }`}>
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/30 transition-colors"
+        className="flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-muted/20 transition-colors"
       >
         {isActive ? (
-          <Loader2 size={16} className="animate-spin text-blue-400" />
+          <Loader2 size={15} className="animate-spin text-blue-400 shrink-0" />
         ) : (
-          <Brain size={16} className="text-muted-foreground" />
+          <Brain size={15} className="text-muted-foreground shrink-0" />
         )}
-        <span className="text-sm text-muted-foreground font-medium">
-          {isActive ? 'Thinking...' : `Completed ${steps.length} steps`}
+        <span className="text-xs text-foreground/70 font-medium flex-1">
+          {isActive
+            ? `Working${activeSteps > 0 ? ` · ${activeSteps} active` : ''}${doneSteps > 0 ? ` · ${doneSteps} done` : ''}`
+            : `Completed ${steps.length} step${steps.length !== 1 ? 's' : ''}`
+          }
         </span>
         {collapsed
-          ? <ChevronRight size={14} className="text-muted-foreground/60 ml-auto" />
-          : <ChevronDown size={14} className="text-muted-foreground/60 ml-auto" />
+          ? <ChevronRight size={13} className="text-muted-foreground/40 shrink-0" />
+          : <ChevronDown size={13} className="text-muted-foreground/40 shrink-0" />
         }
       </button>
 

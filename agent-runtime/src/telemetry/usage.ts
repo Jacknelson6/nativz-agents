@@ -11,6 +11,7 @@ export interface UsageRecord {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  costUsd?: number;
 }
 
 export interface UsageSummary {
@@ -41,16 +42,23 @@ export class UsageTracker {
         model TEXT NOT NULL,
         input_tokens INTEGER NOT NULL,
         output_tokens INTEGER NOT NULL,
+        cost_usd REAL NOT NULL DEFAULT 0,
         timestamp TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
+    // Migrate existing databases that lack the cost_usd column
+    try {
+      this.db.exec(`ALTER TABLE token_usage ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0`);
+    } catch {
+      // Column already exists — ignore
+    }
   }
 
   recordUsage(record: UsageRecord): void {
     this.db
       .prepare(
-        `INSERT INTO token_usage (conversation_id, agent_id, provider, model, input_tokens, output_tokens)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO token_usage (conversation_id, agent_id, provider, model, input_tokens, output_tokens, cost_usd)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.conversationId,
@@ -58,7 +66,8 @@ export class UsageTracker {
         record.provider,
         record.model,
         record.inputTokens,
-        record.outputTokens
+        record.outputTokens,
+        record.costUsd ?? 0
       );
   }
 
@@ -130,6 +139,35 @@ export class UsageTracker {
       outputTokens: r.output_tokens,
       totalTokens: r.input_tokens + r.output_tokens,
     }));
+  }
+
+  getDailyCost(date?: string): number {
+    const dateStr = date ?? new Date().toISOString().split("T")[0];
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(cost_usd), 0) as total_cost
+         FROM token_usage WHERE date(timestamp) = ?`
+      )
+      .get(dateStr) as { total_cost: number };
+    return row.total_cost;
+  }
+
+  getMonthlyCost(yearMonth?: string): number {
+    const ym = yearMonth ?? new Date().toISOString().slice(0, 7);
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(cost_usd), 0) as total_cost
+         FROM token_usage WHERE strftime('%Y-%m', timestamp) = ?`
+      )
+      .get(ym) as { total_cost: number };
+    return row.total_cost;
+  }
+
+  getConversationCount(): number {
+    const row = this.db
+      .prepare(`SELECT COUNT(DISTINCT conversation_id) as cnt FROM token_usage`)
+      .get() as { cnt: number };
+    return row.cnt;
   }
 
   close(): void {

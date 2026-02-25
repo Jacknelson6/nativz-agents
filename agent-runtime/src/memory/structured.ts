@@ -162,10 +162,30 @@ export class StructuredMemoryStore {
     return rows.map(rowToMemory);
   }
 
+
+  getAllMemories(agentId: string, limit?: number): StructuredMemory[] {
+    const rows = this.db.prepare(
+      `SELECT * FROM structured_memories WHERE agent_id = ? ORDER BY last_accessed DESC LIMIT ?`
+    ).all(agentId, limit ?? 200) as MemoryRow[];
+    return rows.map(rowToMemory);
+  }
+
   updateAccessCount(id: string): void {
     this.db.prepare(
       `UPDATE structured_memories SET access_count = access_count + 1, last_accessed = datetime('now') WHERE id = ?`
     ).run(id);
+  }
+
+  updateMemory(id: string, content: string, confidence?: number): void {
+    if (confidence !== undefined) {
+      this.db.prepare(
+        `UPDATE structured_memories SET content = ?, confidence = ?, last_accessed = datetime('now') WHERE id = ?`
+      ).run(content, confidence, id);
+    } else {
+      this.db.prepare(
+        `UPDATE structured_memories SET content = ?, last_accessed = datetime('now') WHERE id = ?`
+      ).run(content, id);
+    }
   }
 
   deleteMemory(id: string): void {

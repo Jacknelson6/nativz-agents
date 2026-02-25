@@ -16,7 +16,7 @@ const GROUP_KEYWORDS: Record<ToolGroup, string[]> = {
   "social-media": ["twitter", "instagram", "linkedin", "facebook", "tiktok", "post", "social", "tweet", "share"],
   analytics: ["analytics", "metrics", "data", "chart", "graph", "report", "dashboard", "stats", "tracking"],
   "content-creation": ["write", "draft", "create", "generate", "content", "blog", "article", "copy", "edit"],
-  browser: ["browse", "navigate", "click", "web", "page", "screenshot", "stagehand", "playwright", "crawl", "scrape"],
+  browser: ["browse", "navigate", "click", "web", "page", "screenshot", "playwright", "crawl", "scrape"],
   "file-system": ["file", "read", "write", "directory", "folder", "path", "filesystem", "save", "open"],
   memory: ["memory", "remember", "recall", "store", "forget", "knowledge"],
   search: ["search", "find", "query", "lookup", "google", "brave"],

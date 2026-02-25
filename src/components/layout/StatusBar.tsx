@@ -8,9 +8,12 @@ import {
   Command,
   Hash,
   Zap,
+  ArrowDown,
+  ArrowUp,
 } from "lucide-react";
 import { useModelStore } from "../../stores/modelStore";
 import { useChatStore } from "../../stores/chatStore";
+import { useAppStore } from "../../stores/appStore";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -47,7 +50,9 @@ function StatusDot({ status }: { status: HealthStatus }) {
 export default function StatusBar() {
   const { currentProviderId, currentModelId, availableProviders } =
     useModelStore();
-  const { messages } = useChatStore();
+  const { messages, isStreaming, conversationTokens } = useChatStore();
+  const sidecarStatus = useAppStore((s) => s.sidecarStatus);
+  const showDevStats = useAppStore((s) => s.settings.showDevStats);
 
   const currentProvider = useMemo(
     () => availableProviders.find((p) => p.id === currentProviderId),
@@ -60,18 +65,39 @@ export default function StatusBar() {
   );
 
   const tokenCount = useMemo(() => {
-    return messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+    let sum = 0;
+    for (const m of messages) {
+      sum += estimateTokens(m.content);
+      if (m.toolCalls) {
+        for (const tc of m.toolCalls) {
+          sum += estimateTokens(JSON.stringify(tc.input));
+          if (tc.output) sum += estimateTokens(tc.output);
+        }
+      }
+    }
+    return sum;
   }, [messages]);
 
   const estimatedCost = useMemo(() => {
     if (!currentModel?.costPerInputToken) return 0;
-    const inputTokens = messages
-      .filter((m) => m.role === "user")
-      .reduce((sum, m) => sum + estimateTokens(m.content), 0);
-    const outputTokens = messages
-      .filter((m) => m.role === "assistant")
-      .reduce((sum, m) => sum + estimateTokens(m.content), 0);
-
+    let inputTokens = 0;
+    let outputTokens = 0;
+    for (const m of messages) {
+      const tokens = estimateTokens(m.content);
+      if (m.role === "user") {
+        inputTokens += tokens;
+      } else if (m.role === "assistant") {
+        outputTokens += tokens;
+        // Tool call inputs count as output (model generates them)
+        // Tool call outputs count as input (fed back to model)
+        if (m.toolCalls) {
+          for (const tc of m.toolCalls) {
+            outputTokens += estimateTokens(JSON.stringify(tc.input));
+            if (tc.output) inputTokens += estimateTokens(tc.output);
+          }
+        }
+      }
+    }
     return (
       inputTokens * (currentModel.costPerInputToken ?? 0) * 100 +
       outputTokens * (currentModel.costPerOutputToken ?? 0) * 100
@@ -79,15 +105,20 @@ export default function StatusBar() {
   }, [messages, currentModel]);
 
   const health = currentProvider?.health;
-  const healthStatus: HealthStatus = health?.status ?? "down";
+  const loading = useModelStore((s) => s.loading);
+  const healthStatus: HealthStatus = loading
+    ? "degraded"
+    : health?.status ?? (availableProviders.length === 0 ? "degraded" : "down");
   const latencyMs = health?.latencyMs ?? 0;
 
   return (
-    <div className="flex items-center gap-1 px-4 py-1.5 border-t text-[11px] text-muted-foreground select-none shrink-0">
+    <div className="flex items-center gap-1 px-2 sm:px-4 py-1.5 border-t text-[11px] text-muted-foreground select-none shrink-0 overflow-x-auto">
       {/* Model + Provider */}
       <Badge variant="secondary" className="text-[10px] h-5 gap-1 font-normal">
         <Cpu size={10} />
-        {currentModel?.name ?? currentModelId ?? "No model"}
+        {loading
+          ? "Loading..."
+          : currentModel?.name ?? currentModelId ?? "No model"}
         {currentProvider && (
           <span className="text-muted-foreground/60">
             ({currentProvider.name})
@@ -95,21 +126,38 @@ export default function StatusBar() {
         )}
       </Badge>
 
-      <Separator orientation="vertical" className="h-3 mx-1" />
+      {showDevStats && (
+        <>
+          <Separator orientation="vertical" className="h-3 mx-1" />
 
-      {/* Token count */}
-      <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
-        <Hash size={9} />
-        {tokenCount.toLocaleString()} tokens
-      </Badge>
+          {/* Token count */}
+          <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
+            <Hash size={9} />
+            {tokenCount.toLocaleString()} tokens
+          </Badge>
 
-      <Separator orientation="vertical" className="h-3 mx-1" />
+          {/* Conversation tokens (streaming estimate) */}
+          {(conversationTokens.input > 0 || conversationTokens.output > 0) && (
+            <>
+              <Separator orientation="vertical" className="h-3 mx-1" />
+              <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
+                <ArrowDown size={9} className="text-sky-400" />
+                {conversationTokens.input.toLocaleString()}
+                <ArrowUp size={9} className="text-emerald-400" />
+                {conversationTokens.output.toLocaleString()}
+              </Badge>
+            </>
+          )}
 
-      {/* Cost */}
-      <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
-        <DollarSign size={9} />
-        {formatCost(estimatedCost)}
-      </Badge>
+          <Separator orientation="vertical" className="h-3 mx-1" />
+
+          {/* Cost */}
+          <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
+            <DollarSign size={9} />
+            {formatCost(estimatedCost)}
+          </Badge>
+        </>
+      )}
 
       <Separator orientation="vertical" className="h-3 mx-1" />
 
@@ -117,7 +165,9 @@ export default function StatusBar() {
       <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal">
         {healthStatus === "down" ? <WifiOff size={10} /> : <Wifi size={10} />}
         <StatusDot status={healthStatus} />
-        <span className="capitalize">{healthStatus}</span>
+        <span className="capitalize">
+          {loading ? "Connecting" : healthStatus === "degraded" && !health ? "Checking" : healthStatus}
+        </span>
       </Badge>
 
       {latencyMs > 0 && (
@@ -129,6 +179,26 @@ export default function StatusBar() {
           >
             <Clock size={9} />
             {formatLatency(latencyMs)}
+          </Badge>
+        </>
+      )}
+
+      {isStreaming && (
+        <>
+          <Separator orientation="vertical" className="h-3 mx-1" />
+          <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal text-sky-400 border-sky-400/30 animate-pulse">
+            <Zap size={9} />
+            Processing
+          </Badge>
+        </>
+      )}
+
+      {sidecarStatus !== 'connected' && (
+        <>
+          <Separator orientation="vertical" className="h-3 mx-1" />
+          <Badge variant="outline" className="text-[10px] h-5 gap-1 font-normal text-amber-400 border-amber-400/30">
+            <WifiOff size={10} />
+            {sidecarStatus === 'crashed' ? 'Disconnected' : 'Reconnecting...'}
           </Badge>
         </>
       )}

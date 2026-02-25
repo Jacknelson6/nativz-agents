@@ -6,6 +6,7 @@ import { listAgents } from "./agent/loader.js";
 import type { EntityType } from "./memory/structured.js";
 import { supabase } from "./integrations/supabase.js";
 import * as path from "node:path";
+import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // Handle both ESM (tsx) and compiled binary (bun) contexts
@@ -70,7 +71,7 @@ router.register("send_message", async (params) => {
   const agentId = params.agentId as string;
   const message = params.message as string;
   const userId = (params.userId as string) ?? "default";
-  const requestId = params.requestId as string | undefined ?? crypto.randomUUID();
+  const requestId = (params.requestId as string | undefined) ?? crypto.randomUUID();
   if (!agentId) throw new Error("agentId is required");
   if (!message) throw new Error("message is required");
   if (!apiKey && !process.env.ANTHROPIC_API_KEY) {
@@ -136,7 +137,27 @@ router.register("list_conversations", async (params) => {
   const agentId = params.agentId as string;
   const limit = (params.limit as number | undefined) ?? 50;
   const offset = (params.offset as number | undefined) ?? 0;
-  if (!agentId) throw new Error("agentId is required");
+
+  // If no agentId, gather conversations across all loaded runtimes
+  if (!agentId) {
+    const allConvs: Array<{ id: string; agentId: string; title: string; createdAt: string; updatedAt: string; messageCount: number }> = [];
+    for (const [aid, rt] of runtimes.entries()) {
+      const conversations = rt.getConversationStore().list(aid, { limit, offset });
+      for (const c of conversations) {
+        allConvs.push({
+          id: c.id,
+          agentId: c.agentId,
+          title: c.title,
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+          messageCount: c.messages.length,
+        });
+      }
+    }
+    allConvs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return { conversations: allConvs.slice(offset, offset + limit) };
+  }
+
   const rt = await getOrLoadRuntime(agentId);
   const conversations = rt.getConversationStore().list(agentId, { limit, offset });
   return {
@@ -173,13 +194,30 @@ router.register("delete_conversation", async (params) => {
   return { status: "ok" };
 });
 
+router.register("rename_conversation", async (params) => {
+  const conversationId = params.conversationId as string;
+  const title = params.title as string;
+  if (!conversationId || !title) throw new Error("conversationId and title required");
+  for (const rt of runtimes.values()) {
+    const conv = rt.getConversationStore().load(conversationId);
+    if (conv) {
+      rt.getConversationStore().updateTitle(conversationId, title);
+      return { status: "ok" };
+    }
+  }
+  return { status: "not_found" };
+});
+
 router.register("get_memories", async (params) => {
   const agentId = params.agentId as string;
-  const entityId = params.entityId as string;
+  const entityId = (params.entityId as string) || "";
   const entityType = (params.entityType as string) ?? "user";
-  if (!agentId || !entityId) throw new Error("agentId and entityId are required");
+  if (!agentId) throw new Error("agentId is required");
   const rt = await getOrLoadRuntime(agentId);
-  const memories = rt.getStructuredMemory().getMemoriesForEntity(agentId, entityId, entityType as EntityType);
+  // If no entityId provided, return ALL memories for the agent
+  const memories = entityId
+    ? rt.getStructuredMemory().getMemoriesForEntity(agentId, entityId, entityType as EntityType)
+    : rt.getStructuredMemory().getAllMemories(agentId);
   return {
     memories: memories.map((m) => ({
       id: m.id,
@@ -231,13 +269,17 @@ router.register("set_provider", async (params) => {
 
 router.register("list_providers", async (params) => {
   const agentId = params.agentId as string | undefined;
+  const force = (params.force as boolean | undefined) ?? false;
   if (agentId) {
     const rt = await getOrLoadRuntime(agentId);
     const registry = rt.getProviderRegistry();
     const providers = registry.getAll();
 
-    // Run health checks to get fresh status
-    await registry.healthCheckAll().catch(() => {});
+    // Only run health checks if forced or no cached data exists
+    const needsCheck = force || providers.some((p) => !registry.getCachedHealth(p.name));
+    if (needsCheck) {
+      await registry.healthCheckAll(force).catch(() => {});
+    }
 
     return {
       providers: providers.map((p) => {
@@ -266,12 +308,113 @@ router.register("list_providers", async (params) => {
   return { providers: [] };
 });
 
+router.register("update_memory", async (params) => {
+  const agentId = params.agentId as string;
+  const memoryId = params.memoryId as string;
+  const content = params.content as string;
+  const confidence = params.confidence as number | undefined;
+  if (!agentId || !memoryId || !content) throw new Error("agentId, memoryId, and content required");
+  const rt = await getOrLoadRuntime(agentId);
+  rt.getStructuredMemory().updateMemory(memoryId, content, confidence);
+  return { status: "ok" };
+});
+
+router.register("delete_memory", async (params) => {
+  const agentId = params.agentId as string;
+  const memoryId = params.memoryId as string;
+  if (!agentId || !memoryId) throw new Error("agentId and memoryId required");
+  const rt = await getOrLoadRuntime(agentId);
+  rt.getStructuredMemory().deleteMemory(memoryId);
+  return { status: "ok" };
+});
+
 router.register("get_working_memory", async (params) => {
   const agentId = params.agentId as string;
   if (!agentId) throw new Error("agentId is required");
   const rt = await getOrLoadRuntime(agentId);
   const wm = rt.getWorkingMemory();
   return { entries: wm?.list() ?? {} };
+});
+
+router.register("list_knowledge_files", async (params) => {
+  const agentId = params.agentId as string;
+  if (!agentId) throw new Error("agentId is required");
+  const rt = await getOrLoadRuntime(agentId);
+  const manifest = rt.getManifest();
+  if (!manifest) return { files: [] };
+
+  const agentDir = path.join(agentsDir, agentId);
+  const knowledgeDir = path.join(agentDir, "knowledge");
+
+  const files: Array<{ name: string; path: string; sizeBytes: number; modifiedAt: string }> = [];
+
+  try {
+    const entries = fs.readdirSync(knowledgeDir);
+    for (const entry of entries) {
+      if (!entry.endsWith('.md')) continue;
+      const filePath = path.join(knowledgeDir, entry);
+      const stat = fs.statSync(filePath);
+      files.push({
+        name: entry.replace(/\.md$/, '').replace(/[-_]/g, ' '),
+        path: entry,
+        sizeBytes: stat.size,
+        modifiedAt: stat.mtime.toISOString(),
+      });
+    }
+  } catch {
+    // knowledge dir may not exist
+  }
+
+  return { files };
+});
+
+router.register("read_knowledge_file", async (params) => {
+  const agentId = params.agentId as string;
+  const filePath = params.filePath as string;
+  if (!agentId || !filePath) throw new Error("agentId and filePath required");
+
+  // Prevent path traversal
+  const safeName = path.basename(filePath);
+  const fullPath = path.join(agentsDir, agentId, "knowledge", safeName);
+
+  try {
+    const content = fs.readFileSync(fullPath, "utf-8");
+    return { content };
+  } catch {
+    return { content: null, error: "File not found" };
+  }
+});
+
+router.register("get_system_prompt", async (params) => {
+  const agentId = params.agentId as string;
+  if (!agentId) throw new Error("agentId required");
+  const rt = await getOrLoadRuntime(agentId);
+  const manifest = rt.getManifest();
+
+  // Check for custom prompt file
+  const customPath = path.join(agentsDir, agentId, "custom_prompts", "system.txt");
+  try {
+    const custom = fs.readFileSync(customPath, "utf-8");
+    return { prompt: custom, isCustom: true, defaultPrompt: manifest?.systemPrompt ?? "" };
+  } catch {
+    return { prompt: manifest?.systemPrompt ?? "", isCustom: false, defaultPrompt: manifest?.systemPrompt ?? "" };
+  }
+});
+
+router.register("set_system_prompt", async (params) => {
+  const agentId = params.agentId as string;
+  const prompt = params.prompt as string;
+  if (!agentId || prompt === undefined) throw new Error("agentId and prompt required");
+
+  const customDir = path.join(agentsDir, agentId, "custom_prompts");
+  fs.mkdirSync(customDir, { recursive: true });
+  fs.writeFileSync(path.join(customDir, "system.txt"), prompt, "utf-8");
+
+  return { status: "ok" };
+});
+
+router.register("ping", async () => {
+  return { status: "ok", uptime: Math.floor(process.uptime()) };
 });
 
 router.register("shutdown", async () => {
@@ -286,6 +429,12 @@ router.register("shutdown", async () => {
 // Start the server
 const server = new RpcServer(router);
 server.start();
+
+// Startup health check
+const hasKeys = !!(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GOOGLE_API_KEY || process.env.OPENROUTER_API_KEY);
+if (!hasKeys) {
+  process.stderr.write("agent-runtime: WARNING - No LLM API keys found in environment. Please configure them in the app.\n");
+}
 
 // Log to stderr so it doesn't interfere with JSON-RPC on stdout
 process.stderr.write("agent-runtime: RPC server started\n");

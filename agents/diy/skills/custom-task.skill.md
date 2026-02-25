@@ -32,7 +32,7 @@ Match the task to the best tools:
 | Task Type | Primary Tools | When to Use |
 |-----------|--------------|-------------|
 | Research | web-search, web-crawl | Finding information, competitive analysis, market research |
-| Data extraction | web-crawl, stagehand-extract, http-request | Pulling structured data from websites or APIs |
+| Data extraction | web-crawl, browse-page, http-request | Pulling structured data from websites or APIs |
 | Content creation | file-write | Writing documents, reports, scripts, plans |
 | Analysis | file-read, http-request | Processing existing data, files, or API responses |
 | Visual capture | screenshot | Documenting UI states, capturing web pages, visual comparison |

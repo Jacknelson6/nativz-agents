@@ -1,6 +1,5 @@
 import { z } from "zod";
-import type { SkillDefinition } from "../registry.js";
-import { WorkingMemory } from "../../memory/working.js";
+import type { SkillDefinition, SkillExecutionContext } from "../registry.js";
 
 export const memoryReadSkill: SkillDefinition = {
   name: "memory-read",
@@ -8,17 +7,16 @@ export const memoryReadSkill: SkillDefinition = {
   parameters: z.object({
     key: z.string().describe("The key to read from working memory"),
   }),
-  execute: async (params) => {
+  execute: async (params, context?: SkillExecutionContext) => {
     const { key } = params as { key: string };
-    const wm = new WorkingMemory("default", "default");
-    try {
-      const value = wm.get(key);
-      if (value === null) {
-        return JSON.stringify({ found: false, key });
-      }
-      return JSON.stringify({ found: true, key, value });
-    } finally {
-      wm.close();
+    const wm = context?.workingMemory;
+    if (!wm) {
+      return JSON.stringify({ found: false, key, error: "No working memory available — start a conversation first" });
     }
+    const value = wm.get(key);
+    if (value === null) {
+      return JSON.stringify({ found: false, key });
+    }
+    return JSON.stringify({ found: true, key, value });
   },
 };

@@ -274,35 +274,6 @@ export const transformExecutor: StepExecutor = async (step, input) => {
 // ── Chain Templates (ship pre-built per agent) ─────────────────────────────
 
 export const CHAIN_TEMPLATES: Record<string, ChainDefinition[]> = {
-  "content-editor": [
-    {
-      id: "content-review",
-      name: "Content Review Pipeline",
-      description: "Generate draft → fact-check → brand voice → format for platform",
-      agentId: "content-editor",
-      tags: ["content", "review"],
-      steps: [
-        { id: "draft", name: "Generate Draft", kind: "llm", target: "Write a draft based on: {{input}}" },
-        { id: "fact-check", name: "Fact Check", kind: "llm", target: "Fact-check the following content and flag any inaccuracies:\n\n{{input}}" },
-        { id: "brand-voice", name: "Brand Voice Check", kind: "llm", target: "Review this content for brand voice consistency. Suggest edits:\n\n{{input}}" },
-        { id: "format", name: "Format for Platform", kind: "llm", target: "Format this content for social media publishing:\n\n{{input}}" },
-      ],
-    },
-    {
-      id: "blog-pipeline",
-      name: "Blog Post Pipeline",
-      description: "Research → outline → draft → SEO optimize → final edit",
-      agentId: "content-editor",
-      tags: ["blog", "seo"],
-      steps: [
-        { id: "research", name: "Research Topic", kind: "llm", target: "Research the following topic and provide key points:\n\n{{input}}" },
-        { id: "outline", name: "Create Outline", kind: "llm", target: "Create a detailed blog post outline from this research:\n\n{{input}}" },
-        { id: "draft", name: "Write Draft", kind: "llm", target: "Write a full blog post from this outline:\n\n{{input}}" },
-        { id: "seo", name: "SEO Optimize", kind: "sub-agent", target: "seo", params: { task: "optimize" } },
-        { id: "final-edit", name: "Final Edit", kind: "llm", target: "Do a final editorial pass on this blog post:\n\n{{input}}" },
-      ],
-    },
-  ],
   seo: [
     {
       id: "seo-audit",
@@ -316,32 +287,16 @@ export const CHAIN_TEMPLATES: Record<string, ChainDefinition[]> = {
         { id: "recommendations", name: "Generate Recommendations", kind: "llm", target: "Generate actionable SEO recommendations:\n\n{{input}}" },
       ],
     },
-  ],
-  ads: [
     {
-      id: "ad-creation",
-      name: "Ad Creation Pipeline",
-      description: "Brief → copy variants → review → A/B test setup",
-      agentId: "ads",
-      tags: ["ads", "creative"],
+      id: "competitor-analysis",
+      name: "Competitor Analysis Chain",
+      description: "Research → compare → gaps → strategy",
+      agentId: "seo",
+      tags: ["seo", "competitive"],
       steps: [
-        { id: "brief", name: "Parse Brief", kind: "transform", target: "", transformFn: "return input" },
-        { id: "copy", name: "Generate Copy Variants", kind: "llm", target: "Generate 3 ad copy variants for:\n\n{{input}}" },
-        { id: "review", name: "Compliance Review", kind: "llm", target: "Review these ad copies for platform compliance:\n\n{{input}}" },
-      ],
-    },
-  ],
-  "account-manager": [
-    {
-      id: "client-report",
-      name: "Client Report Generation",
-      description: "Gather metrics → analyze → generate report → format",
-      agentId: "account-manager",
-      tags: ["reporting", "client"],
-      steps: [
-        { id: "gather", name: "Gather Metrics", kind: "llm", target: "Summarize the key metrics from:\n\n{{input}}" },
-        { id: "analyze", name: "Analyze Performance", kind: "llm", target: "Analyze performance trends:\n\n{{input}}" },
-        { id: "report", name: "Generate Report", kind: "llm", target: "Generate a professional client report:\n\n{{input}}" },
+        { id: "research", name: "Research Competitors", kind: "llm", target: "Research the competitive landscape for:\n\n{{input}}" },
+        { id: "compare", name: "Compare SEO Metrics", kind: "llm", target: "Compare SEO strengths and weaknesses:\n\n{{input}}" },
+        { id: "strategy", name: "Generate Strategy", kind: "llm", target: "Generate a competitive SEO strategy based on:\n\n{{input}}" },
       ],
     },
   ],

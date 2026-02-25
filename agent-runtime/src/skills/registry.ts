@@ -1,12 +1,17 @@
 import { z, type ZodType } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages.js";
+import type { WorkingMemory } from "../memory/working.js";
+
+export interface SkillExecutionContext {
+  workingMemory?: WorkingMemory | null;
+}
 
 export interface SkillDefinition {
   name: string;
   description: string;
   parameters: ZodType;
-  execute: (params: Record<string, unknown>) => Promise<string>;
+  execute: (params: Record<string, unknown>, context?: SkillExecutionContext) => Promise<string>;
   group?: string;
 }
 

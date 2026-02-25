@@ -75,6 +75,7 @@ export default function UpdateBanner() {
           variant="ghost"
           size="icon"
           className="h-7 w-7"
+          aria-label="Dismiss update notification"
           onClick={() => setDismissed(true)}
         >
           <X className="w-3.5 h-3.5" />

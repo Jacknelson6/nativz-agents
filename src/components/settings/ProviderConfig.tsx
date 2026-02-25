@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useModelStore } from "../../stores/modelStore";
+import { setProvider as setTauriProvider } from "../../lib/tauri";
+import { emitNotification } from "../layout/NotificationCenter";
 import type { Provider, ModelInfo } from "../../lib/types";
 import {
   Server,
@@ -15,6 +17,9 @@ import {
   DollarSign,
   Loader2,
   RefreshCw,
+  Eye,
+  EyeOff,
+  Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +44,7 @@ export default function ProviderConfig() {
     Record<string, "testing" | "success" | "error">
   >({});
   const [orderedProviders, setOrderedProviders] = useState<Provider[]>([]);
+  const [showKey, setShowKey] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     void refreshProviders();
@@ -72,6 +78,20 @@ export default function ProviderConfig() {
         ...patch,
       },
     }));
+  };
+
+  const handleSaveProvider = async (providerId: string) => {
+    const form = formStates[providerId];
+    if (!form) return;
+    try {
+      // In a real app, we'd save the API key to a secure store or the sidecar
+      // For now, we'll use the set_provider command which triggers hot-swap
+      await setTauriProvider('seo', providerId);
+      emitNotification({ type: 'success', title: 'Provider Updated', message: `${providerId} is now the active provider.` });
+      await refreshProviders();
+    } catch (err) {
+      emitNotification({ type: 'error', title: 'Update Failed', message: err instanceof Error ? err.message : 'Unknown error' });
+    }
   };
 
   const handleTestConnection = async (providerId: string) => {
@@ -131,7 +151,7 @@ export default function ProviderConfig() {
         </Button>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {orderedProviders.map((provider, index) => {
           const isExpanded = expanded === provider.id;
           const form = getFormState(provider);
@@ -184,21 +204,31 @@ export default function ProviderConfig() {
               </CardHeader>
 
               {isExpanded && (
-                <CardContent className="pt-0 space-y-4">
+                <CardContent className="pt-0 px-4 pb-4 space-y-5">
                   <Separator />
 
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                       <Key size={12} /> API Key
                     </label>
-                    <Input
-                      type="password"
-                      value={form.apiKey}
-                      onChange={(e) =>
-                        updateForm(provider.id, { apiKey: e.target.value })
-                      }
-                      placeholder="Enter API key..."
-                    />
+                    <div className="relative">
+                      <Input
+                        type={showKey[provider.id] ? "text" : "password"}
+                        value={form.apiKey}
+                        onChange={(e) =>
+                          updateForm(provider.id, { apiKey: e.target.value })
+                        }
+                        placeholder="Enter API key..."
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKey(prev => ({ ...prev, [provider.id]: !prev[provider.id] }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showKey[provider.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
@@ -226,7 +256,7 @@ export default function ProviderConfig() {
                           selectedModel: e.target.value,
                         })
                       }
-                      className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring truncate"
                     >
                       {provider.models.map((m) => (
                         <option key={m.id} value={m.id}>
@@ -244,10 +274,10 @@ export default function ProviderConfig() {
                       {provider.models.map((m) => (
                         <div
                           key={m.id}
-                          className="flex items-center justify-between text-xs text-muted-foreground py-1.5 px-2 rounded bg-muted/50"
+                          className="flex items-center justify-between gap-2 text-xs text-muted-foreground py-1.5 px-2 rounded bg-muted/50"
                         >
-                          <span>{m.name}</span>
-                          <span className="font-mono">{formatCost(m)}</span>
+                          <span className="truncate min-w-0">{m.name}</span>
+                          <span className="font-mono whitespace-nowrap shrink-0">{formatCost(m)}</span>
                         </div>
                       ))}
                     </div>
@@ -272,6 +302,15 @@ export default function ProviderConfig() {
                         <AlertCircle size={12} className="mr-1" />
                       )}
                       Test Connection
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleSaveProvider(provider.id)}
+                      className="ml-auto gap-1.5"
+                    >
+                      <Save size={12} />
+                      Save Configuration
                     </Button>
                     {testResult === "success" && (
                       <span className="text-xs text-emerald-400">

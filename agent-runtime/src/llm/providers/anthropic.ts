@@ -37,7 +37,7 @@ const ANTHROPIC_MODELS: ModelInfo[] = [
     supportsVision: true,
   },
   {
-    id: "claude-haiku-4-5-20251001",
+    id: "claude-haiku-4-5-20241022",
     name: "Claude Haiku 4.5",
     contextWindow: 200000,
     maxOutputTokens: 8192,
@@ -175,7 +175,8 @@ export class AnthropicProvider implements LlmProvider {
         provider: this.name,
         latencyMs: Date.now() - start,
       };
-    } catch {
+    } catch (err) {
+      console.error(`[anthropic] Stream failed, falling back to non-streaming:`, err instanceof Error ? err.message : err);
       return this.call(request);
     }
   }
@@ -202,7 +203,7 @@ export class AnthropicProvider implements LlmProvider {
     const start = Date.now();
     try {
       await this.client.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-haiku-4-5-20241022",
         max_tokens: 1,
         messages: [{ role: "user", content: "hi" }],
       });

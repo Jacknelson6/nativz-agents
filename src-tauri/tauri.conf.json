@@ -39,7 +39,6 @@
       "../agent-runtime/node_modules/better-sqlite3/**/*",
       "../agent-runtime/node_modules/bindings/**/*",
       "../agent-runtime/node_modules/file-uri-to-path/**/*",
-      "../agent-runtime/node_modules/node-addon-api/**/*",
       "../agent-runtime/node_modules/prebuild-install/**/*"
     ]
   }

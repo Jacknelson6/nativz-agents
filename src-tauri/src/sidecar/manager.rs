@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 
@@ -33,6 +33,8 @@ pub struct SidecarManager {
     pending: Arc<Mutex<HashMap<u64, tokio::sync::oneshot::Sender<Result<Value, String>>>>>,
     runtime_path: String,
     use_node: bool, // true = run with `node` (bundled .mjs), false = `npx tsx` (dev .ts)
+    crashed: Arc<AtomicBool>,
+    app_handle: Option<AppHandle>,
 }
 
 impl SidecarManager {
@@ -43,6 +45,8 @@ impl SidecarManager {
             pending: Arc::new(Mutex::new(HashMap::new())),
             runtime_path,
             use_node: false,
+            crashed: Arc::new(AtomicBool::new(false)),
+            app_handle: None,
         }
     }
 
@@ -122,6 +126,8 @@ impl SidecarManager {
         if self.process.is_some() {
             return Ok(());
         }
+        self.app_handle = Some(app_handle.clone());
+        self.crashed.store(false, Ordering::SeqCst);
 
         let runtime_dir = std::path::Path::new(&self.runtime_path)
             .parent().unwrap()
@@ -163,6 +169,7 @@ impl SidecarManager {
         let stdout = child.stdout.take().ok_or("No stdout")?;
         let pending = self.pending.clone();
         let app = app_handle.clone();
+        let crashed_flag = self.crashed.clone();
 
         // Reader thread for stdout
         std::thread::spawn(move || {
@@ -199,6 +206,18 @@ impl SidecarManager {
                     let _ = app.emit("sidecar-output", &line);
                 }
             }
+
+            // Stdout closed — sidecar process exited
+            eprintln!("[sidecar] stdout reader exited — sidecar process has stopped");
+            crashed_flag.store(true, Ordering::SeqCst);
+
+            // Fail all pending requests
+            let mut pending = pending.lock().unwrap();
+            for (_, tx) in pending.drain() {
+                let _ = tx.send(Err("Sidecar process exited".to_string()));
+            }
+
+            let _ = app.emit("sidecar-crashed", "process exited");
         });
 
         // Stderr reader
@@ -220,7 +239,29 @@ impl SidecarManager {
         Ok(())
     }
 
+    /// Restart the sidecar after a crash. Returns Ok(()) if restart succeeds.
+    pub fn restart(&mut self) -> Result<(), String> {
+        eprintln!("[sidecar] Attempting restart...");
+        self.kill();
+        self.crashed.store(false, Ordering::SeqCst);
+
+        let app_handle = self.app_handle.clone().ok_or("No app handle stored")?;
+        self.start(app_handle)
+    }
+
+    #[allow(dead_code)]
+    pub fn has_crashed(&self) -> bool {
+        self.crashed.load(Ordering::SeqCst)
+    }
+
     pub fn send_request(&mut self, method: &str, params: Value) -> Result<tokio::sync::oneshot::Receiver<Result<Value, String>>, String> {
+        // Auto-restart on crash detection
+        if self.crashed.load(Ordering::SeqCst) {
+            eprintln!("[sidecar] Crash detected, auto-restarting before request...");
+            self.restart().map_err(|e| format!("Auto-restart failed: {}", e))?;
+            // Brief delay to let sidecar initialize
+            std::thread::sleep(std::time::Duration::from_millis(300));
+        }
         let process = self.process.as_mut().ok_or("Sidecar not running")?;
         let stdin = process.child.stdin.as_mut().ok_or("No stdin")?;
 

@@ -5,14 +5,12 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "node build.mjs",
-    "build:typecheck": "tsc --noEmit",
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
     "cli": "tsx src/cli.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@browserbasehq/stagehand": "^3.0.8",
     "@google/generative-ai": "^0.24.1",
     "@lancedb/lancedb": "^0.26.2",
     "@modelcontextprotocol/sdk": "^1.12.1",
@@ -28,7 +26,6 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.13.0",
-    "esbuild": "^0.25.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

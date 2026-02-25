@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppStore } from "../../stores/appStore";
-import { Key, User, Palette, Info, Server } from "lucide-react";
+import { Key, Palette, Info, Server, Download, Upload, BarChart3 } from "lucide-react";
 import ProviderConfig from "./ProviderConfig";
+import { exportAllData, downloadExport, importData, readFileAsText } from "../../lib/dataManager";
+import { emitNotification } from "../layout/NotificationCenter";
+
 import {
   Sheet,
   SheetContent,
@@ -18,8 +21,30 @@ export default function Settings() {
   const { settings, updateSettings, toggleSettings, settingsOpen } = useAppStore();
   const [apiKey, setApiKey] = useState(settings.apiKey);
 
+  // Reset local state when sheet opens
+  useEffect(() => {
+    if (settingsOpen) setApiKey(settings.apiKey);
+  }, [settingsOpen, settings.apiKey]);
+
+  const importRef = useRef<HTMLInputElement>(null);
+
   const handleSaveKey = () => {
     updateSettings({ apiKey });
+  };
+
+  const handleExport = () => {
+    const data = exportAllData();
+    downloadExport(data);
+    emitNotification({ type: 'success', title: 'Data Exported', message: 'Your data has been exported successfully.' });
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await readFileAsText(file);
+    const result = importData(text);
+    emitNotification({ type: result.success ? 'success' : 'error', title: result.success ? 'Import Complete' : 'Import Failed', message: result.message });
+    if (importRef.current) importRef.current.value = '';
   };
 
   return (
@@ -63,28 +88,6 @@ export default function Settings() {
 
             <Separator />
 
-            {/* Role */}
-            <section className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <User size={14} /> Role
-              </div>
-              <select
-                value={settings.role}
-                onChange={(e) =>
-                  updateSettings({ role: e.target.value as any })
-                }
-                className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="admin">Admin</option>
-                <option value="editor">Editor</option>
-                <option value="paid-media">Paid Media</option>
-                <option value="account-manager">Account Manager</option>
-                <option value="developer">Developer</option>
-              </select>
-            </section>
-
-            <Separator />
-
             {/* Theme */}
             <section className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium">
@@ -107,13 +110,59 @@ export default function Settings() {
 
             <Separator />
 
+            {/* Developer Stats */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <BarChart3 size={14} /> Developer Stats
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Show token usage and cost estimates in the status bar.
+              </p>
+              <div className="flex gap-2">
+                {([true, false] as const).map((val) => (
+                  <Button
+                    key={String(val)}
+                    variant={!!settings.showDevStats === val ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => updateSettings({ showDevStats: val })}
+                  >
+                    {val ? "Show" : "Hide"}
+                  </Button>
+                ))}
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Data Management */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Download size={14} /> Data Management
+              </div>
+              <p className="text-xs text-muted-foreground">Export or import your data for backup.</p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
+                  <Download size={12} />
+                  Export Data
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => importRef.current?.click()} className="gap-1.5">
+                  <Upload size={12} />
+                  Import Data
+                </Button>
+                <input ref={importRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Import will merge with existing data.</p>
+            </section>
+
+            <Separator />
+
             {/* About */}
             <section className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Info size={14} /> About
               </div>
               <p className="text-xs text-muted-foreground">
-                Nativz Agents v0.1.0
+                Nativz SEO v1.0.0
               </p>
               <p className="text-xs text-muted-foreground/60">
                 Built with Tauri + React + Claude
@@ -124,6 +173,7 @@ export default function Settings() {
           <TabsContent value="providers" className="mt-6">
             <ProviderConfig />
           </TabsContent>
+
         </Tabs>
       </SheetContent>
     </Sheet>

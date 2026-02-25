@@ -2,7 +2,7 @@
 name: performance-report
 description: Paid media performance analysis and reporting with actionable optimization recommendations
 triggers: [report, ROAS, performance, metrics, analytics, optimization, results, spend, CPA, CPL, CTR]
-tools_required: [file-write, web-search, http-request, stagehand-extract, screenshot]
+tools_required: [file-write, web-search, http-request, browse-page, screenshot]
 ---
 
 # Performance Report
@@ -27,7 +27,7 @@ Gather performance data from available sources:
 | ROAS | ✓ | ✓ | ✓ |
 | Frequency | ✓ | - | ✓ |
 
-Use `stagehand-extract` or `http-request` to pull data from dashboards or APIs. Use `screenshot` to capture dashboard states for the report.
+Use `browse-page` or `http-request` to pull data from dashboards or APIs. Use `screenshot` to capture dashboard states for the report.
 
 Check working memory for previous performance data to enable period-over-period comparison.
 

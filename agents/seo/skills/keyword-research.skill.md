@@ -2,7 +2,7 @@
 name: keyword-research
 description: Comprehensive keyword research including opportunity identification, competitive gap analysis, and content mapping
 triggers: [keyword, search volume, ranking, keyword research, keyword gap, search intent, SERP analysis]
-tools_required: [web-search, http-request, file-write, stagehand-extract]
+tools_required: [web-search, http-request, file-write, browse-page]
 ---
 
 # Keyword Research

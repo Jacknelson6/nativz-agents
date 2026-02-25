@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useAnalyticsStore } from '../../stores/analyticsStore';
-import { BarChart3, DollarSign, Zap } from 'lucide-react';
+import { BarChart3, DollarSign, Zap, MessageSquare } from 'lucide-react';
+
+const LazyCharts = lazy(() => import('./AnalyticsCharts'));
 
 export default function Dashboard() {
   const { usageStats, costStats, loading, refreshStats } = useAnalyticsStore();
@@ -40,7 +42,7 @@ export default function Dashboard() {
   const totalTokens = usageStats?.monthly?.totalTokens ?? 0;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold flex items-center gap-2">
           <BarChart3 size={20} className="text-primary" />
@@ -55,7 +57,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
           icon={<Zap size={14} />}
           label="Monthly Tokens"
@@ -72,12 +74,23 @@ export default function Dashboard() {
           value={formatCurrency(costStats?.monthCost ?? 0)}
         />
         <StatCard
-          icon={<TrendingDown size={14} />}
-          label="Budget Status"
-          value={costStats?.withinBudget ? 'On Track' : 'Over Budget'}
-          accent={costStats?.withinBudget}
+          icon={<MessageSquare size={14} />}
+          label="Conversations"
+          value={formatNumber(costStats?.totalConversations ?? 0)}
         />
       </div>
+
+      {/* Charts */}
+      <Suspense fallback={<div className="text-xs text-muted-foreground text-center py-8">Loading charts...</div>}>
+        <LazyCharts
+          byModel={usageStats?.byModel ?? []}
+          byAgent={usageStats?.byAgent ?? []}
+          dailyInput={usageStats?.daily?.inputTokens ?? 0}
+          dailyOutput={usageStats?.daily?.outputTokens ?? 0}
+          monthlyInput={usageStats?.monthly?.inputTokens ?? 0}
+          monthlyOutput={usageStats?.monthly?.outputTokens ?? 0}
+        />
+      </Suspense>
 
       {/* Token Usage Summary */}
       <div className="bg-card border border-border rounded-xl p-5">
@@ -101,7 +114,7 @@ export default function Dashboard() {
       </div>
 
       {/* Breakdowns */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <BreakdownCard
           title="By Agent"
           data={byAgentRecord}
@@ -115,27 +128,6 @@ export default function Dashboard() {
           formatter={formatNumber}
         />
       </div>
-
-      {/* Budget Info */}
-      {costStats && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="text-sm font-medium mb-3">Budget</h3>
-          <div className="grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <span className="text-muted-foreground">Daily Limit:</span>{' '}
-              <span className="font-mono">{formatCurrency(costStats.dailyLimit)}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Monthly Limit:</span>{' '}
-              <span className="font-mono">{formatCurrency(costStats.monthlyLimit)}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Conversations:</span>{' '}
-              <span className="font-mono">{costStats.totalConversations}</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -144,12 +136,10 @@ function StatCard({
   icon,
   label,
   value,
-  accent,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  accent?: boolean;
 }) {
   return (
     <div className="bg-card border border-border rounded-xl p-4">
@@ -157,7 +147,7 @@ function StatCard({
         {icon}
         <span className="text-[10px] uppercase tracking-wider">{label}</span>
       </div>
-      <p className={`text-xl font-semibold ${accent ? 'text-emerald-400' : ''}`}>{value}</p>
+      <p className="text-xl font-semibold">{value}</p>
     </div>
   );
 }
@@ -179,7 +169,7 @@ function BreakdownCard({
     <div className="bg-card border border-border rounded-xl p-4">
       <h3 className="text-xs font-medium mb-3">{title}</h3>
       {entries.length === 0 ? (
-        <p className="text-[10px] text-muted">No data</p>
+        <p className="text-[10px] text-muted-foreground">No data</p>
       ) : (
         <div className="space-y-2">
           {entries.slice(0, 6).map(([key, val]) => {
@@ -187,7 +177,7 @@ function BreakdownCard({
             return (
               <div key={key}>
                 <div className="flex items-center justify-between text-[11px] mb-0.5">
-                  <span className="truncate text-muted">{key}</span>
+                  <span className="truncate text-muted-foreground">{key}</span>
                   <span className="font-mono ml-2">{formatter(val)}</span>
                 </div>
                 <div className="h-1 bg-muted/30 rounded-full overflow-hidden">

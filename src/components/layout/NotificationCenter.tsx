@@ -101,7 +101,7 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
     });
   }, []);
 
-  // Close panel on outside click
+  // Close panel on outside click or Escape key
   useEffect(() => {
     if (!panelOpen) return;
     const handleClick = (e: MouseEvent) => {
@@ -109,8 +109,15 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
         setPanelOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPanelOpen(false);
+    };
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [panelOpen]);
 
   const dismissToast = useCallback((id: string) => {
@@ -151,6 +158,7 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
       <div className="relative" ref={panelRef}>
         <button
           onClick={() => setPanelOpen(!panelOpen)}
+          aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
           className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition"
         >
           <Bell className="w-5 h-5" />
@@ -184,7 +192,7 @@ export default function NotificationCenter({ onNavigate }: { onNavigate?: (targe
               {notifications.length === 0 ? (
                 <div className="py-12 text-center">
                   <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-40" />
-                  <p className="text-xs text-muted">No notifications yet</p>
+                  <p className="text-xs text-muted-foreground">No notifications yet</p>
                 </div>
               ) : (
                 notifications.map((notif) => (

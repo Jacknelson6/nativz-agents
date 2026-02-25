@@ -16,6 +16,17 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'syntax-highlight': ['react-syntax-highlighter'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tooltip', '@radix-ui/react-slot'],
+          'vendor-markdown': ['react-markdown'],
+        },
+      },
+    },
+  },
   clearScreen: false,
   server: {
     port: 1420,

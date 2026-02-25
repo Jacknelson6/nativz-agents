@@ -111,7 +111,8 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
 
     recognition.onend = () => {
       // If still supposed to be recording, restart (browser may stop it)
-      if (recognitionRef.current === recognition && isRecording) {
+      // Use ref to check recording state to avoid circular dependency
+      if (recognitionRef.current === recognition) {
         try {
           recognition.start();
         } catch {
@@ -124,7 +125,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
     setIsRecording(true);
     setTranscript('');
     setInterimTranscript('');
-  }, [isSupported, disabled, onTranscript, stopRecording, isRecording]);
+  }, [isSupported, disabled, onTranscript, stopRecording]);
 
   const handleSend = useCallback(() => {
     if (transcript.trim()) {
@@ -152,10 +153,10 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
             {transcript || interimTranscript ? (
               <span>
                 <span className="text-foreground">{transcript}</span>
-                <span className="text-muted italic">{interimTranscript}</span>
+                <span className="text-muted-foreground italic">{interimTranscript}</span>
               </span>
             ) : (
-              <span className="text-muted">Listening...</span>
+              <span className="text-muted-foreground">Listening...</span>
             )}
           </div>
           {transcript && (
@@ -184,7 +185,7 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
         className={`p-2 rounded-lg transition-all duration-200 ${
           isRecording
             ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-            : 'text-muted hover:text-foreground hover:bg-muted/10'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/10'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         title={isRecording ? 'Stop recording' : 'Voice input'}
       >

@@ -85,6 +85,10 @@ export class ConversationStore {
     }
   }
 
+  updateTitle(id: string, title: string): void {
+    this.db.prepare(`UPDATE conversations SET title = ?, updated_at = datetime('now') WHERE id = ?`).run(title, id);
+  }
+
   load(id: string): Conversation | null {
     const row = this.db.prepare(`SELECT * FROM conversations WHERE id = ?`).get(id) as ConversationRow | undefined;
     return row ? rowToConversation(row) : null;

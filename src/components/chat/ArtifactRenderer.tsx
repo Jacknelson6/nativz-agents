@@ -91,7 +91,9 @@ function highlightCode(code: string): string {
   let result = code
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
   for (const [className, regex] of Object.entries(TOKEN_CLASSES)) {
     result = result.replace(regex, `<span class="${className}">$&</span>`);

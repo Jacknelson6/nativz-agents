@@ -1,10 +1,10 @@
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
-import type { ClaudeClient } from "../llm/client.js";
+import type { ProviderRegistry } from "../llm/provider-registry.js";
 
 const SUMMARIZE_THRESHOLD = 50;
 
 export class ConversationSummarizer {
-  constructor(private client: ClaudeClient) {}
+  constructor(private registry: ProviderRegistry) {}
 
   shouldSummarize(messages: MessageParam[]): boolean {
     return messages.length > SUMMARIZE_THRESHOLD;
@@ -30,10 +30,10 @@ export class ConversationSummarizer {
       })
       .join("\n");
 
-    const response = await this.client.call({
-      model: "claude-haiku-4-5-20251001",
+    const response = await this.registry.callWithFallback({
+      model: "claude-haiku-4-5-20241022",
       system: "Summarize this conversation concisely, preserving key facts, decisions, and context needed to continue the conversation. Be thorough but brief.",
-      messages: [{ role: "user", content: conversationText }],
+      messages: [{ role: "user", content: conversationText } as any],
       maxTokens: 1000,
     });
 

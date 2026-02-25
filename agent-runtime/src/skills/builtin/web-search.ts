@@ -10,9 +10,9 @@ export const webSearchSkill: SkillDefinition = {
   }),
   execute: async (params) => {
     const { query, count } = params as { query: string; count?: number };
-    const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+    const apiKey = process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY;
     if (!apiKey) {
-      return JSON.stringify({ error: "BRAVE_SEARCH_API_KEY not set" });
+      return JSON.stringify({ error: "Web search requires a Brave Search API key. Set BRAVE_SEARCH_API_KEY in your .env file. Get a free key at https://brave.com/search/api/" });
     }
     try {
       const url = new URL("https://api.search.brave.com/res/v1/web/search");

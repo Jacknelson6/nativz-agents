@@ -2,7 +2,7 @@
 name: technical-audit
 description: Comprehensive technical SEO audit covering crawlability, indexability, Core Web Vitals, structured data, and site architecture
 triggers: [audit, crawl, technical seo, site audit, technical audit, crawlability, indexability]
-tools_required: [web-crawl, http-request, screenshot, file-write, stagehand-extract]
+tools_required: [web-crawl, http-request, screenshot, file-write, browse-page]
 ---
 
 # Technical SEO Audit
@@ -52,7 +52,7 @@ Execute these checks systematically:
 - Store findings: `audit:[domain]:cwv`
 
 ### 2.6 Structured Data
-- Extract and validate JSON-LD from key pages using `stagehand-extract`
+- Extract and validate JSON-LD from key pages using `browse-page`
 - Check for: valid schema types, required properties, Google rich result eligibility
 - Identify opportunities for missing schema (FAQ, HowTo, Product, LocalBusiness, etc.)
 

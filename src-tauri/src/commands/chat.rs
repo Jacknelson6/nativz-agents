@@ -42,10 +42,20 @@ pub async fn send_message(
     })?;
 
     eprintln!("[chat] Got result: {:?}", &format!("{}", result)[..100.min(format!("{}", result).len())]);
+
+    // Check if the result contains an error field
+    if let Some(error) = result.get("error").and_then(|v| v.as_str()) {
+        eprintln!("[chat] Result contains error: {}", error);
+        return Err(error.to_string());
+    }
+
     let response = result
         .get("response")
         .and_then(|v| v.as_str())
-        .unwrap_or("No response")
+        .unwrap_or_else(|| {
+            eprintln!("[chat] No 'response' key in result, returning raw result");
+            "No response from agent"
+        })
         .to_string();
 
     Ok(response)
@@ -84,6 +94,7 @@ pub async fn get_history(
 // ─── New v2 IPC commands ───
 
 #[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ConversationSummary {
     pub id: String,
     pub agent_id: String,
@@ -212,19 +223,39 @@ pub async fn delete_conversation(
 }
 
 #[tauri::command]
+pub async fn rename_conversation(
+    conversation_id: String,
+    title: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<(), String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("rename_conversation", json!({
+            "conversationId": conversation_id,
+            "title": title,
+        }))?
+    };
+    let _ = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn get_memories(
     agent_id: String,
-    entity_id: String,
+    entity_id: Option<String>,
     entity_type: Option<String>,
     sidecar: tauri::State<'_, Mutex<SidecarManager>>,
 ) -> Result<serde_json::Value, String> {
     let rx = {
         let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
-        mgr.send_request("get_memories", json!({
-            "agentId": agent_id,
-            "entityId": entity_id,
-            "entityType": entity_type.unwrap_or_else(|| "user".to_string()),
-        }))?
+        let eid = entity_id.unwrap_or_default();
+        let mut params = serde_json::Map::new();
+        params.insert("agentId".to_string(), json!(agent_id));
+        if !eid.is_empty() {
+            params.insert("entityId".to_string(), json!(eid));
+            params.insert("entityType".to_string(), json!(entity_type.unwrap_or_else(|| "user".to_string())));
+        }
+        mgr.send_request("get_memories", serde_json::Value::Object(params))?
     };
 
     let result = rx.await.map_err(|_| "Channel closed".to_string())??;
@@ -261,6 +292,122 @@ pub async fn get_cost_stats(
         mgr.send_request("get_cost_stats", serde_json::Value::Object(params))?
     };
 
+    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn update_memory(
+    agent_id: String,
+    memory_id: String,
+    content: String,
+    confidence: Option<f64>,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<(), String> {
+    let mut params = serde_json::Map::new();
+    params.insert("agentId".to_string(), json!(agent_id));
+    params.insert("memoryId".to_string(), json!(memory_id));
+    params.insert("content".to_string(), json!(content));
+    if let Some(c) = confidence {
+        params.insert("confidence".to_string(), json!(c));
+    }
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("update_memory", serde_json::Value::Object(params))?
+    };
+    let _ = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_memory(
+    agent_id: String,
+    memory_id: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<(), String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("delete_memory", json!({
+            "agentId": agent_id,
+            "memoryId": memory_id,
+        }))?
+    };
+    let _ = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_system_prompt(
+    agent_id: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<serde_json::Value, String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("get_system_prompt", json!({
+            "agentId": agent_id,
+        }))?
+    };
+    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn set_system_prompt(
+    agent_id: String,
+    prompt: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<(), String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("set_system_prompt", json!({
+            "agentId": agent_id,
+            "prompt": prompt,
+        }))?
+    };
+    let _ = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn ping_sidecar(
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<serde_json::Value, String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("ping", json!({}))?
+    };
+    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn list_knowledge_files(
+    agent_id: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<serde_json::Value, String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("list_knowledge_files", json!({
+            "agentId": agent_id,
+        }))?
+    };
+    let result = rx.await.map_err(|_| "Channel closed".to_string())??;
+    Ok(result.get("files").cloned().unwrap_or(serde_json::Value::Array(vec![])))
+}
+
+#[tauri::command]
+pub async fn read_knowledge_file(
+    agent_id: String,
+    file_path: String,
+    sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+) -> Result<serde_json::Value, String> {
+    let rx = {
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        mgr.send_request("read_knowledge_file", json!({
+            "agentId": agent_id,
+            "filePath": file_path,
+        }))?
+    };
     let result = rx.await.map_err(|_| "Channel closed".to_string())??;
     Ok(result)
 }

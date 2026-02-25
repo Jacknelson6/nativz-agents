@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { useModelStore } from "../../stores/modelStore";
 import { useAgentStore } from "../../stores/agentStore";
-import type { Provider } from "../../lib/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,9 +23,11 @@ export default function ModelSelector() {
     setProvider,
   } = useModelStore();
 
+  const { selectedAgent } = useAgentStore();
+
   useEffect(() => {
-    refreshProviders();
-  }, []);
+    refreshProviders(selectedAgent?.id);
+  }, [selectedAgent?.id]);
 
   const currentProvider = availableProviders.find(
     (p) => p.id === currentProviderId
@@ -34,10 +35,9 @@ export default function ModelSelector() {
   const currentModel = currentProvider?.models.find(
     (m) => m.id === currentModelId
   );
-  const { selectedAgent } = useAgentStore();
 
-  const handleSelect = async (provider: Provider) => {
-    await setProvider(selectedAgent?.id ?? "", provider.id);
+  const handleSelect = async (providerId: string, modelId: string) => {
+    await setProvider(selectedAgent?.id ?? "", providerId, modelId);
   };
 
   const healthDot = (status: string) => {
@@ -91,7 +91,7 @@ export default function ModelSelector() {
               return (
                 <DropdownMenuItem
                   key={model.id}
-                  onClick={() => handleSelect(provider)}
+                  onClick={() => handleSelect(provider.id, model.id)}
                   className={`ml-4 ${isActive ? "bg-accent" : ""}`}
                 >
                   <span className="flex-1">{model.name}</span>

@@ -56,14 +56,6 @@
         "@modelcontextprotocol/server-filesystem",
         "./"
       ]
-    },
-    {
-      "name": "memory",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
-      ]
     }
   ],
   "memory": {

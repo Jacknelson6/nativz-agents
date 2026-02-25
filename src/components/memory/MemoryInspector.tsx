@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Search, Trash2, Edit3, Check, Brain } from 'lucide-react';
-import { getMemories } from '../../lib/tauri';
+import { getMemories, updateMemory, deleteMemory } from '../../lib/tauri';
+import { emitNotification } from '../layout/NotificationCenter';
 import { useAgentStore } from '../../stores/agentStore';
 import type { StructuredMemory, MemoryCategory, MemoryEntityType } from '../../lib/types';
 
@@ -35,9 +36,13 @@ export default function MemoryInspector({ onClose }: Props) {
     setLoading(true);
     try {
       const agentId = selectedAgent?.id ?? '';
-      const result = await getMemories(agentId, 'default', filterEntity || undefined);
-      // Client-side filtering for category and search
+      // Fetch ALL memories for the agent (no entityId filter)
+      const result = await getMemories(agentId);
+      // Client-side filtering for entity type, category, and search
       let filtered = result;
+      if (filterEntity) {
+        filtered = filtered.filter((m) => m.entityType === filterEntity);
+      }
       if (filterCategory) {
         filtered = filtered.filter((m) => m.category === filterCategory);
       }
@@ -57,7 +62,7 @@ export default function MemoryInspector({ onClose }: Props) {
   }, [fetchMemories]);
 
   const entityCounts = memories.reduce<Record<string, number>>((acc, m) => {
-    acc[m.entity] = (acc[m.entity] || 0) + 1;
+    acc[m.entityId] = (acc[m.entityId] || 0) + 1;
     return acc;
   }, {});
 
@@ -66,17 +71,29 @@ export default function MemoryInspector({ onClose }: Props) {
     setEditContent(memory.content);
   };
 
-  const handleSaveEdit = () => {
-    // Would invoke a Tauri command to update — for now update local state
-    setMemories((prev) =>
-      prev.map((m) => (m.id === editingId ? { ...m, content: editContent } : m))
-    );
+  const handleSaveEdit = async () => {
+    if (!editingId || !selectedAgent) return;
+    try {
+      await updateMemory(selectedAgent.id, editingId, editContent);
+      setMemories((prev) =>
+        prev.map((m) => (m.id === editingId ? { ...m, content: editContent } : m))
+      );
+      emitNotification({ type: 'success', title: 'Memory Updated', message: 'The memory has been updated successfully.' });
+    } catch (err) {
+      emitNotification({ type: 'error', title: 'Update Failed', message: err instanceof Error ? err.message : 'Unknown error' });
+    }
     setEditingId(null);
   };
 
-  const handleDelete = (id: string) => {
-    // Would invoke a Tauri command to delete
-    setMemories((prev) => prev.filter((m) => m.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!selectedAgent) return;
+    try {
+      await deleteMemory(selectedAgent.id, id);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+      emitNotification({ type: 'success', title: 'Memory Deleted', message: 'The memory has been removed.' });
+    } catch (err) {
+      emitNotification({ type: 'error', title: 'Delete Failed', message: err instanceof Error ? err.message : 'Unknown error' });
+    }
     setDeleteConfirm(null);
   };
 
@@ -175,7 +192,7 @@ export default function MemoryInspector({ onClose }: Props) {
                         {memory.entityType}
                       </span>
                       <span className="text-[10px] text-muted">·</span>
-                      <span className="text-[10px] text-muted">{memory.entity}</span>
+                      <span className="text-[10px] text-muted">{memory.entityId}</span>
                       <span className="text-[10px] text-muted">·</span>
                       <span className="text-[10px] bg-muted/30 px-1.5 py-0.5 rounded text-muted">
                         {memory.category}
@@ -204,7 +221,7 @@ export default function MemoryInspector({ onClose }: Props) {
                       <p className="text-sm leading-relaxed">{memory.content}</p>
                     )}
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                      {new Date(memory.updatedAt).toLocaleDateString()}
+                      {new Date(memory.updatedAt ?? memory.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

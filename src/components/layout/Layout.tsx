@@ -11,13 +11,13 @@ import type { ReactNode } from "react";
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={typeof window !== "undefined" && window.innerWidth >= 768}>
         <div className="flex h-screen w-full overflow-hidden">
           <AppSidebar />
           <SidebarInset className="flex flex-col min-w-0">
             <UpdateBanner />
             <TopBar />
-            <main className="flex-1 overflow-y-auto">{children}</main>
+            <main className="flex-1 min-w-0 overflow-y-auto">{children}</main>
             <StatusBar />
           </SidebarInset>
         </div>

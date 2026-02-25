@@ -1,14 +1,12 @@
 import type { MessageParam, ContentBlock } from "@anthropic-ai/sdk/resources/messages.js";
-import { ClaudeClient, type LlmResponse, type StreamCallbacks } from "../llm/client.js";
 import { selectModel, classifyComplexity, SmartRouter, type ModelConfig, type RoutingDecision } from "../llm/router.js";
 import { ProviderRegistry } from "../llm/provider-registry.js";
-import { CostTracker as LlmCostTracker } from "../llm/cost-tracker.js";
 import { AnthropicProvider } from "../llm/providers/anthropic.js";
 import { OpenAIProvider } from "../llm/providers/openai.js";
-import { GeminiProvider } from "../llm/providers/gemini.js";
-import { OllamaProvider } from "../llm/providers/ollama.js";
 import { OpenRouterProvider } from "../llm/providers/openrouter.js";
-import type { UnifiedLlmRequest, UnifiedLlmResponse, UnifiedMessage, UnifiedToolDefinition, UnifiedStreamCallbacks, UnifiedContentBlock } from "../llm/providers/types.js";
+import { OllamaProvider } from "../llm/providers/ollama.js";
+import type { UnifiedMessage, UnifiedToolDefinition, UnifiedStreamCallbacks, UnifiedLlmResponse } from "../llm/providers/types.js";
+import { CostTracker as LlmCostTracker } from "../llm/cost-tracker.js";
 import { SkillRegistry } from "../skills/registry.js";
 import { SkillExecutor } from "../skills/executor.js";
 import { builtinSkills } from "../skills/builtin/index.js";
@@ -51,8 +49,7 @@ export interface AgentRuntimeConfig {
 }
 
 export class AgentRuntime {
-  // Legacy systems (backward compat)
-  private client: ClaudeClient;
+  // Systems
   private skillRegistry: SkillRegistry;
   private skillExecutor: SkillExecutor;
   private knowledgeSearch: KnowledgeSearch | null = null;
@@ -91,34 +88,21 @@ export class AgentRuntime {
     const apiKey = typeof config === "string" ? config : config?.apiKey;
     this.dataDir = (typeof config === "object" ? config?.dataDir : undefined) ?? path.join(process.cwd(), "data");
 
-    // Legacy
-    this.client = new ClaudeClient(apiKey);
+    // Initialize systems
     this.skillRegistry = new SkillRegistry();
     this.skillExecutor = new SkillExecutor(this.skillRegistry);
     this.memoryStore = new MemoryStore(path.join(this.dataDir, "memory.db"));
-    this.summarizer = new ConversationSummarizer(this.client);
     this.mcpRegistry = new McpRegistry();
 
-    // v2 systems — register all available providers
+    // v2 systems
     this.providerRegistry = new ProviderRegistry();
-    this.llmCostTracker = new LlmCostTracker();
-
-    // Always register Anthropic (we have it as the legacy fallback)
     this.providerRegistry.register(new AnthropicProvider({ apiKey }));
-
-    // Register other providers if their API keys are available
-    if (process.env.OPENAI_API_KEY) {
-      this.providerRegistry.register(new OpenAIProvider());
-    }
-    if (process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      this.providerRegistry.register(new GeminiProvider());
-    }
-    // Ollama is local — always register, health check will determine availability
+    this.providerRegistry.register(new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY }));
+    this.providerRegistry.register(new OpenRouterProvider({ apiKey: process.env.OPENROUTER_API_KEY }));
     this.providerRegistry.register(new OllamaProvider());
-    if (process.env.OPENROUTER_API_KEY) {
-      this.providerRegistry.register(new OpenRouterProvider());
-    }
 
+    this.llmCostTracker = new LlmCostTracker();
+    this.summarizer = new ConversationSummarizer(this.providerRegistry);
     this.smartRouter = new SmartRouter(this.providerRegistry, this.llmCostTracker);
     this.structuredMemory = new StructuredMemoryStore(path.join(this.dataDir, "structured_memory.db"));
     this.conversationStore = new ConversationStore(path.join(this.dataDir, "conversations.db"));
@@ -296,43 +280,17 @@ export class AgentRuntime {
       contextManager: this.contextManager,
     });
 
-    // Select model via smart router (multi-provider) with fallback to legacy
+    // Select model via smart router or legacy
+    const complexity = classifyComplexity(userMessage);
+    const modelConfig: ModelConfig = this.manifest.model;
+    const model = selectModel(complexity, modelConfig);
+
+    // Get tools (with dynamic selection if too many)
     const allTools = this.skillRegistry.list();
     const selectedTools = this.toolSelector.selectTools(userMessage, allTools);
     const tools = this.skillRegistry.toClaudeTools(
       selectedTools.map((t) => t.name)
     );
-
-    const routingDecision = this.smartRouter.route(
-      userMessage,
-      this.conversationHistory.length,
-      tools.length,
-      this.manifest.id
-    );
-
-    // If user has hot-swapped a provider, override the router's decision
-    const activeProvider = this.activeProviderId ?? routingDecision.provider;
-    const activeModel = this.activeProviderId
-      ? routingDecision.model // keep router's model choice even with override
-      : routingDecision.model;
-
-    // Convert tools to unified format for multi-provider calls
-    const unifiedTools: UnifiedToolDefinition[] | undefined = tools.length > 0
-      ? tools.map((t) => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: {
-            type: "object" as const,
-            properties: Object.fromEntries(
-              Object.entries((t.input_schema.properties ?? {}) as Record<string, Record<string, unknown>>).map(([k, v]) => [k, {
-                type: (v.type as string) ?? "string",
-                description: (v.description as string) ?? undefined,
-              }])
-            ),
-            required: t.input_schema.required as string[] | undefined,
-          },
-        }))
-      : undefined;
 
     // Agent loop
     let messages = [...ctx.messages];
@@ -343,19 +301,25 @@ export class AgentRuntime {
       loopCount++;
       const callStartTime = Date.now();
 
-      // Build unified request
-      const unifiedMessages: UnifiedMessage[] = messages.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-      }));
-
-      const unifiedRequest: UnifiedLlmRequest = {
-        model: activeModel,
-        system: ctx.system,
-        messages: unifiedMessages,
-        tools: unifiedTools,
-        maxTokens: this.manifest.guardrails.maxTokensPerTurn,
-      };
+      // Truncate older tool results if context has grown too large (~100K chars)
+      const contextSize = messages.reduce((sum, m) => {
+        const c = typeof m.content === "string" ? m.content : JSON.stringify(m.content);
+        return sum + c.length;
+      }, 0);
+      if (contextSize > 100_000) {
+        console.error(`[agent] Context size ${contextSize} chars exceeds 100K, truncating older tool results`);
+        for (let i = 0; i < messages.length - 4; i++) {
+          const msg = messages[i];
+          if (Array.isArray(msg.content)) {
+            for (let j = 0; j < msg.content.length; j++) {
+              const block = msg.content[j] as unknown as Record<string, unknown>;
+              if (block.type === "tool_result" && typeof block.content === "string" && (block.content as string).length > 500) {
+                block.content = (block.content as string).slice(0, 500) + "... [truncated]";
+              }
+            }
+          }
+        }
+      }
 
       const streamCallbacks: UnifiedStreamCallbacks | undefined = onStreamNotify
         ? {
@@ -365,52 +329,106 @@ export class AgentRuntime {
           }
         : undefined;
 
-      // Route through provider registry with fallback chain
-      const useStream = !!onStreamNotify;
-      const response = await this.providerRegistry.callWithFallback(
-        unifiedRequest,
-        activeProvider,
-        streamCallbacks,
-        useStream
+      const routingDecision = this.smartRouter.route(
+        userMessage,
+        this.conversationHistory.length,
+        tools.length,
+        this.manifest.id
       );
 
-      const latencyMs = response.latencyMs;
+      const request: any = {
+        model: routingDecision.model,
+        system: ctx.system,
+        messages: messages as unknown as UnifiedMessage[],
+        tools: tools as unknown as UnifiedToolDefinition[],
+        maxTokens: this.manifest.guardrails.maxTokensPerTurn,
+      };
 
-      // Record telemetry with actual provider/model used
+      let response: {
+        content: ContentBlock[];
+        stopReason: string | null;
+        usage: { inputTokens: number; outputTokens: number };
+      };
+      try {
+        const unifiedResp = await this.providerRegistry.callWithFallback(
+          request,
+          this.activeProviderId || routingDecision.provider,
+          streamCallbacks,
+          !!onStreamNotify
+        );
+        
+        response = {
+          content: unifiedResp.content as unknown as ContentBlock[],
+          stopReason: unifiedResp.stopReason,
+          usage: unifiedResp.usage,
+        };
+      } catch (llmErr) {
+        const errMsg = llmErr instanceof Error ? llmErr.message : String(llmErr);
+        console.error(`[agent] LLM call failed (loop ${loopCount}):`, errMsg);
+
+        // Classify the error for a user-friendly message
+        let userMsg = `LLM call failed: ${errMsg}`;
+        if (/context.*long|token.*limit|too many tokens/i.test(errMsg)) {
+          userMsg = `LLM call failed: context too long. The conversation plus tool results exceeded the model's token limit.`;
+        } else if (/rate.?limit|429/i.test(errMsg)) {
+          userMsg = `LLM call failed: rate limited. Please wait a moment and try again.`;
+        } else if (/auth|401|api.?key/i.test(errMsg)) {
+          userMsg = `LLM call failed: authentication error. Please check your API key in Settings.`;
+        } else if (/timeout|ETIMEDOUT|ECONNRESET/i.test(errMsg)) {
+          userMsg = `LLM call failed: request timed out. The API may be experiencing high load.`;
+        } else if (/overloaded|529|503|500/i.test(errMsg)) {
+          userMsg = `LLM call failed: API is overloaded. Please try again shortly.`;
+        }
+
+        // If we had tool calls, include a summary of what was done
+        if (toolCalls.length > 0) {
+          const toolSummary = toolCalls.map((tc) => tc.name).join(", ");
+          userMsg += `\nTools executed before failure: ${toolSummary}`;
+        }
+
+        this.conversationHistory.push({ role: "assistant", content: userMsg });
+        this.persistConversation();
+        throw new Error(userMsg);
+      }
+
+      const callEndTime = Date.now();
+      const latencyMs = callEndTime - callStartTime;
+
+      // Record telemetry
       this.usageTracker.recordUsage({
         conversationId: this.conversationId ?? "unknown",
         agentId: this.manifest.id,
-        provider: response.provider,
-        model: response.model,
+        provider: "anthropic",
+        model,
         inputTokens: response.usage.inputTokens,
         outputTokens: response.usage.outputTokens,
       });
 
       this.latencyTracker.record({
-        provider: response.provider,
-        model: response.model,
-        timeToFirstTokenMs: latencyMs * 0.3,
+        provider: "anthropic",
+        model,
+        timeToFirstTokenMs: latencyMs * 0.3, // estimate
         totalTimeMs: latencyMs,
       });
 
       this.llmCostTracker.recordUsage(
         this.conversationId ?? "unknown",
-        response.provider,
-        response.model,
+        "anthropic",
+        model,
         response.usage.inputTokens,
         response.usage.outputTokens
       );
 
-      // Check for tool use
-      const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
-      const textBlocks = response.content.filter((b) => b.type === "text");
+        // Check for tool use
+        const toolUseBlocks = response.content.filter((b: any) => b.type === "tool_use");
+        const textBlocks = response.content.filter((b: any) => b.type === "text");
 
-      if (toolUseBlocks.length === 0 || response.stopReason !== "tool_use") {
-        // Final text response
-        const text = textBlocks
-          .map((b) => ("text" in b ? b.text : ""))
-          .join("")
-          .trim();
+        if (toolUseBlocks.length === 0 || response.stopReason !== "tool_use") {
+          // Final text response
+          const text = textBlocks
+            .map((b: any) => ("text" in b ? b.text : ""))
+            .join("")
+            .trim();
 
         this.conversationHistory.push({ role: "assistant", content: text });
         this.agentMessages.push({
@@ -435,7 +453,7 @@ export class AgentRuntime {
           this.turnIndex,
           score,
           this.manifest.id,
-          response.model
+          model
         );
 
         // Extract facts asynchronously (fire-and-forget with fast model)
@@ -448,9 +466,8 @@ export class AgentRuntime {
         return text;
       }
 
-      // Execute tools — convert unified content back to Anthropic ContentBlock shape
-      // for message history (the conversation protocol uses Anthropic format)
-      messages.push({ role: "assistant", content: response.content as unknown as ContentBlock[] });
+      // Execute tools
+      messages.push({ role: "assistant", content: response.content });
 
       const toolResults: Array<{
         type: "tool_result";
@@ -500,14 +517,14 @@ export class AgentRuntime {
     ];
 
     const llmFn = async (prompt: string): Promise<string> => {
-      const response = await this.client.call({
+      const response = await this.providerRegistry.callWithFallback({
         model: this.manifest!.model.fast,
         system: "You are a fact extraction system.",
         messages: [{ role: "user", content: prompt }],
         maxTokens: 2000,
       });
-      const textBlocks = response.content.filter((b) => b.type === "text");
-      return textBlocks.map((b) => ("text" in b ? b.text : "")).join("");
+      const textBlock = response.content.find((b) => b.type === "text");
+      return textBlock && "text" in textBlock ? textBlock.text : "";
     };
 
     const facts = await extractFacts(recentMessages, llmFn, this.manifest.id);

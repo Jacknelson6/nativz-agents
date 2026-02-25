@@ -11,8 +11,8 @@ export interface ModelConfig {
 }
 
 const DEFAULT_CONFIG: ModelConfig = {
-  primary: "claude-opus-4-20250514",
-  fast: "claude-haiku-4-5-20251001",
+  primary: "claude-3-5-sonnet-latest",
+  fast: "claude-3-5-haiku-latest",
 };
 
 /** Backward-compatible: simple model selection */
@@ -116,19 +116,19 @@ function computeComplexity(signals: RoutingSignals): TaskComplexity {
 const TIER_MAP: Record<TaskComplexity, ProviderPreference[]> = {
   complex: [
     { provider: "anthropic", model: "claude-opus-4-20250514", priority: 1 },
-    { provider: "openai", model: "gpt-5", priority: 2 },
+    { provider: "openai", model: "gpt-4o", priority: 2 },
     { provider: "gemini", model: "gemini-2.5-pro-preview-05-06", priority: 3 },
     { provider: "openrouter", model: "anthropic/claude-opus-4-20250514", priority: 4 },
   ],
   moderate: [
     { provider: "anthropic", model: "claude-sonnet-4-20250514", priority: 1 },
-    { provider: "openai", model: "gpt-4.1", priority: 2 },
+    { provider: "openai", model: "gpt-4o", priority: 2 },
     { provider: "gemini", model: "gemini-2.5-flash-preview-05-20", priority: 3 },
     { provider: "ollama", model: "qwen2.5-coder:7b", priority: 4 },
   ],
   simple: [
-    { provider: "anthropic", model: "claude-haiku-4-5-20251001", priority: 1 },
-    { provider: "openai", model: "gpt-4.1-mini", priority: 2 },
+    { provider: "anthropic", model: "claude-haiku-4-5-20241022", priority: 1 },
+    { provider: "openai", model: "gpt-4o-mini", priority: 2 },
     { provider: "gemini", model: "gemini-2.5-flash-preview-05-20", priority: 3 },
     { provider: "ollama", model: "llama3.2:3b", priority: 4 },
   ],

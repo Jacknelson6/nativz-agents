@@ -34,11 +34,8 @@ export interface TemplateVariable {
 
 export type TemplateCategory =
   | "seo"
-  | "ads"
   | "content"
   | "reporting"
-  | "email"
-  | "social"
   | "strategy"
   | "custom";
 
@@ -86,112 +83,27 @@ Generate the report in {{format}} format for the {{date}} reporting period.`,
     ],
   },
   {
-    name: "Ad Performance Report",
-    description: "Weekly/monthly ad performance analysis",
-    category: "ads",
-    agentId: "ads",
+    name: "Keyword Research Brief",
+    description: "Structured keyword research for a target topic",
+    category: "seo",
+    agentId: "seo",
     isBuiltin: true,
-    content: `Analyze the {{platform}} ad performance for {{client_name}} for the period {{start_date}} to {{end_date}}.
+    content: `Perform keyword research for {{client_name}} targeting the topic: {{topic}}.
 
-Key metrics to evaluate:
-- ROAS (target: {{target_roas}})
-- CPC and CPM trends
-- Top performing ad creatives
-- Audience segment performance
-- Budget utilization ({{budget}} total)
+Target audience: {{audience}}
+Geographic focus: {{geo}}
 
-Provide actionable recommendations for optimization.`,
+Deliver:
+- Primary keyword recommendation with search volume estimate
+- 10-15 secondary/long-tail keywords
+- Keyword difficulty assessment
+- Content format recommendations per keyword cluster
+- SERP feature opportunities (featured snippets, People Also Ask)`,
     variables: [
       { name: "client_name", description: "Client name", required: true },
-      { name: "platform", description: "Ad platform (Google Ads, Meta, TikTok, etc.)", required: true },
-      { name: "start_date", description: "Report start date", required: true },
-      { name: "end_date", description: "Report end date", required: true },
-      { name: "target_roas", description: "Target ROAS", required: false, defaultValue: "4x" },
-      { name: "budget", description: "Total budget", required: false, defaultValue: "N/A" },
-    ],
-  },
-  {
-    name: "Content Brief",
-    description: "Structured content brief for writers",
-    category: "content",
-    agentId: "content-editor",
-    isBuiltin: true,
-    content: `Create a detailed content brief for the following:
-
-Topic: {{topic}}
-Target Keyword: {{primary_keyword}}
-Secondary Keywords: {{secondary_keywords}}
-Target Audience: {{audience}}
-Content Type: {{content_type}}
-Word Count Target: {{word_count}}
-
-Include:
-- Suggested headline options (5)
-- Content outline with H2/H3 structure
-- Key points to cover
-- Internal linking opportunities
-- CTA recommendations
-- SEO guidelines (keyword density, meta description draft)`,
-    variables: [
-      { name: "topic", description: "Content topic", required: true },
-      { name: "primary_keyword", description: "Main target keyword", required: true },
-      { name: "secondary_keywords", description: "Supporting keywords", required: false, defaultValue: "" },
+      { name: "topic", description: "Target topic or seed keyword", required: true },
       { name: "audience", description: "Target audience", required: false, defaultValue: "general" },
-      { name: "content_type", description: "Blog post, landing page, etc.", required: false, defaultValue: "blog post" },
-      { name: "word_count", description: "Target word count", required: false, defaultValue: "1500" },
-    ],
-  },
-  {
-    name: "Social Media Calendar",
-    description: "Weekly social media content calendar",
-    category: "social",
-    agentId: "content-editor",
-    isBuiltin: true,
-    content: `Create a {{duration}} social media content calendar for {{client_name}} on {{platforms}}.
-
-Brand voice: {{brand_voice}}
-Key themes: {{themes}}
-Posting frequency: {{frequency}}
-
-For each post include:
-- Platform
-- Date/time suggestion
-- Copy (with hashtags)
-- Visual direction
-- CTA
-- Content pillar it aligns to`,
-    variables: [
-      { name: "client_name", description: "Client/brand name", required: true },
-      { name: "platforms", description: "Social platforms", required: true },
-      { name: "duration", description: "Calendar duration", required: false, defaultValue: "1 week" },
-      { name: "brand_voice", description: "Brand tone/voice", required: false, defaultValue: "professional yet approachable" },
-      { name: "themes", description: "Key content themes", required: false, defaultValue: "" },
-      { name: "frequency", description: "Posts per week per platform", required: false, defaultValue: "3-5" },
-    ],
-  },
-  {
-    name: "Client Email — Monthly Report",
-    description: "Professional monthly performance email to client",
-    category: "email",
-    agentId: "account-manager",
-    isBuiltin: true,
-    content: `Draft a monthly performance email to {{contact_name}} at {{client_name}}.
-
-Report period: {{month}}
-Key wins: {{wins}}
-Challenges: {{challenges}}
-Next month priorities: {{priorities}}
-Budget status: {{budget_status}}
-
-Tone: Professional, confident, proactive. Close with next steps and a meeting CTA.`,
-    variables: [
-      { name: "contact_name", description: "Client contact name", required: true },
-      { name: "client_name", description: "Client company name", required: true },
-      { name: "month", description: "Reporting month", required: true },
-      { name: "wins", description: "Key wins this month", required: false, defaultValue: "" },
-      { name: "challenges", description: "Challenges faced", required: false, defaultValue: "" },
-      { name: "priorities", description: "Next month priorities", required: false, defaultValue: "" },
-      { name: "budget_status", description: "Budget utilization", required: false, defaultValue: "on track" },
+      { name: "geo", description: "Geographic focus", required: false, defaultValue: "US" },
     ],
   },
 ];

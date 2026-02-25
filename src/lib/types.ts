@@ -19,6 +19,7 @@ export interface ToolCall {
   status: 'running' | 'completed' | 'error';
   input: Record<string, unknown>;
   output?: string;
+  toolUseId?: string;
 }
 
 export interface AppSettings {
@@ -26,6 +27,7 @@ export interface AppSettings {
   role: 'admin' | 'editor' | 'paid-media' | 'account-manager' | 'developer';
   theme: 'dark' | 'light';
   onboardingComplete: boolean;
+  showDevStats?: boolean;
 }
 
 export interface Conversation {
@@ -86,29 +88,39 @@ export type MemoryEntityType = 'client' | 'brand' | 'user';
 
 export interface StructuredMemory {
   id: string;
-  entity: string;
+  entityId: string;
   entityType: MemoryEntityType;
   category: MemoryCategory;
   content: string;
   confidence: number;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: number | string;
+  updatedAt?: number | string;
 }
 
 // --- Analytics types ---
 
+export interface TokenBucket {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export interface GroupedUsage {
+  group: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 export interface UsageStats {
-  daily: { inputTokens: number; outputTokens: number; totalTokens: number };
-  monthly: { inputTokens: number; outputTokens: number; totalTokens: number };
-  byAgent: Array<{ group: string; inputTokens: number; outputTokens: number; totalTokens: number }>;
-  byModel: Array<{ group: string; inputTokens: number; outputTokens: number; totalTokens: number }>;
+  daily: TokenBucket;
+  monthly: TokenBucket;
+  byAgent: GroupedUsage[];
+  byModel: GroupedUsage[];
 }
 
 export interface CostStats {
   todayCost: number;
   monthCost: number;
-  dailyLimit: number;
-  monthlyLimit: number;
-  withinBudget: boolean;
   totalConversations: number;
 }
