@@ -101,7 +101,7 @@ export default function ChatView() {
         {messages.length === 0 ? (
           <EmptyState onSelectPrompt={handleSend} />
         ) : (
-          <div className="w-full px-6 py-6">
+          <div className="max-w-4xl mx-auto px-6 py-6">
             <div className="space-y-3">
               {messages.map((msg, i) => {
                 if (
@@ -160,7 +160,7 @@ export default function ChatView() {
           </div>
         )}
       </div>
-      <InputBar onSend={handleSend} disabled={isStreaming} agentId={selectedAgent?.id} className="w-full" />
+      <InputBar onSend={handleSend} disabled={isStreaming} agentId={selectedAgent?.id} />
     </div>
   );
 }
