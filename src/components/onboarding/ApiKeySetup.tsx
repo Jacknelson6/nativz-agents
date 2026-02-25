@@ -57,7 +57,7 @@ export default function ApiKeySetup({ onNext }: Props) {
       </div>
       <h2 className="text-2xl font-bold tracking-tight mb-2">API Key</h2>
       <p className="text-sm text-muted-foreground max-w-md mb-8 leading-relaxed">
-        Enter your Anthropic API key to power the SEO agent.
+        Enter your Anthropic API key to power the agents. You can add more providers later in Settings.
       </p>
       <div className="w-full max-w-md relative">
         <Input

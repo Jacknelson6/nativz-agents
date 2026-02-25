@@ -115,21 +115,21 @@ function computeComplexity(signals: RoutingSignals): TaskComplexity {
 
 const TIER_MAP: Record<TaskComplexity, ProviderPreference[]> = {
   complex: [
-    { provider: "anthropic", model: "claude-opus-4-20250514", priority: 1 },
+    { provider: "anthropic", model: "claude-3-5-sonnet-latest", priority: 1 },
     { provider: "openai", model: "gpt-4o", priority: 2 },
-    { provider: "gemini", model: "gemini-2.5-pro-preview-05-06", priority: 3 },
-    { provider: "openrouter", model: "anthropic/claude-opus-4-20250514", priority: 4 },
+    { provider: "gemini", model: "gemini-1.5-pro-latest", priority: 3 },
+    { provider: "openrouter", model: "anthropic/claude-3.5-sonnet", priority: 4 },
   ],
   moderate: [
-    { provider: "anthropic", model: "claude-sonnet-4-20250514", priority: 1 },
+    { provider: "anthropic", model: "claude-3-5-sonnet-latest", priority: 1 },
     { provider: "openai", model: "gpt-4o", priority: 2 },
-    { provider: "gemini", model: "gemini-2.5-flash-preview-05-20", priority: 3 },
+    { provider: "gemini", model: "gemini-1.5-flash-latest", priority: 3 },
     { provider: "ollama", model: "qwen2.5-coder:7b", priority: 4 },
   ],
   simple: [
-    { provider: "anthropic", model: "claude-haiku-4-5-20241022", priority: 1 },
+    { provider: "anthropic", model: "claude-3-5-haiku-latest", priority: 1 },
     { provider: "openai", model: "gpt-4o-mini", priority: 2 },
-    { provider: "gemini", model: "gemini-2.5-flash-preview-05-20", priority: 3 },
+    { provider: "gemini", model: "gemini-1.5-flash-latest", priority: 3 },
     { provider: "ollama", model: "llama3.2:3b", priority: 4 },
   ],
 };

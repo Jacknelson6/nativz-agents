@@ -31,7 +31,11 @@ function Onboarding() {
   const { loadAgents } = useAgentStore();
 
   const finishOnboarding = async () => {
-    await updateSettings({ role: "admin", onboardingComplete: true });
+    await updateSettings({ 
+      role: "admin", 
+      onboardingComplete: true,
+      apiKeys: { anthropic: useAppStore.getState().settings.apiKey }
+    });
     await loadAgents();
     setView("home");
   };

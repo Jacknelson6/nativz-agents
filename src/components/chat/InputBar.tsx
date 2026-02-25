@@ -20,7 +20,7 @@ const SLASH_COMMANDS = [
   { trigger: "/strategy", label: "Content Strategy", prompt: "Develop an SEO content strategy for " },
 ];
 
-export default function InputBar({ onSend, disabled, agentId }: Props) {
+export default function InputBar({ onSend, disabled, agentId, className }: Props & { className?: string }) {
   const [input, setInput] = useState("");
   const [showCommands, setShowCommands] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState(SLASH_COMMANDS);
@@ -112,9 +112,9 @@ export default function InputBar({ onSend, disabled, agentId }: Props) {
   };
 
   return (
-    <div className="border-t p-4 relative">
+    <div className={`border-t p-4 relative ${className}`}>
       {showCommands && filteredCommands.length > 0 && (
-        <Card className="absolute bottom-full left-4 right-4 mb-2 z-50 overflow-hidden border-primary/20 shadow-xl max-w-3xl mx-auto">
+        <Card className="absolute bottom-full left-4 right-4 mb-2 z-50 overflow-hidden border-primary/20 shadow-xl mx-auto">
           <div className="bg-muted/50 px-3 py-1.5 border-b border-border/50 flex items-center gap-2">
             <Sparkles size={12} className="text-primary" />
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">SEO Commands</span>
@@ -138,7 +138,7 @@ export default function InputBar({ onSend, disabled, agentId }: Props) {
         </Card>
       )}
 
-      <Card className="max-w-3xl mx-auto flex items-end gap-2 p-2 focus-within:ring-0 focus-within:border-border relative">
+      <Card className="w-full flex items-end gap-2 p-2 focus-within:ring-0 focus-within:border-border relative">
         <textarea
           ref={textareaRef}
           value={input}

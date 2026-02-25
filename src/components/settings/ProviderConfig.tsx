@@ -1,6 +1,7 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect, useCallback } from "react";
 import { useModelStore } from "../../stores/modelStore";
-import { setProvider as setTauriProvider } from "../../lib/tauri";
+import { getSettings, saveSettings as saveTauriSettings } from "../../lib/tauri";
 import { emitNotification } from "../layout/NotificationCenter";
 import type { Provider, ModelInfo } from "../../lib/types";
 import {
@@ -54,6 +55,27 @@ export default function ProviderConfig() {
     setOrderedProviders(availableProviders);
   }, [availableProviders]);
 
+  const loadKeys = useCallback(async () => {
+    const s = await getSettings();
+    if (s.apiKeys) {
+      const states: Record<string, ProviderFormState> = {};
+      for (const [pid, key] of Object.entries(s.apiKeys)) {
+        const provider = availableProviders.find(p => p.id === pid);
+        states[pid] = {
+          apiKey: key,
+          baseUrl: "",
+          selectedModel: provider?.models[0]?.id ?? "",
+          isSubscription: provider?.isSubscription ?? false
+        };
+      }
+      setFormStates(prev => ({ ...prev, ...states }));
+    }
+  }, [availableProviders]);
+
+  useEffect(() => {
+    loadKeys();
+  }, [loadKeys]);
+
   const getFormState = useCallback(
     (provider: Provider): ProviderFormState => {
       return (
@@ -84,13 +106,23 @@ export default function ProviderConfig() {
     const form = formStates[providerId];
     if (!form) return;
     try {
-      // In a real app, we'd save the API key to a secure store or the sidecar
-      // For now, we'll use the set_provider command which triggers hot-swap
-      await setTauriProvider('seo', providerId);
-      emitNotification({ type: 'success', title: 'Provider Updated', message: `${providerId} is now the active provider.` });
+      const currentSettings = await getSettings();
+      const updatedKeys = { ...(currentSettings.apiKeys || {}), [providerId]: form.apiKey };
+      
+      await saveTauriSettings({ 
+        ...currentSettings, 
+        apiKeys: updatedKeys,
+        apiKey: providerId === 'anthropic' ? form.apiKey : currentSettings.apiKey
+      });
+
+      emitNotification({ type: 'success', title: 'Configuration Saved', message: `${providerId} credentials updated.` });
+      
+      // Notify sidecar about new keys immediately
+      await invoke('set_api_keys', { apiKeys: updatedKeys });
+      
       await refreshProviders();
     } catch (err) {
-      emitNotification({ type: 'error', title: 'Update Failed', message: err instanceof Error ? err.message : 'Unknown error' });
+      emitNotification({ type: 'error', title: 'Save Failed', message: err instanceof Error ? err.message : 'Unknown error' });
     }
   };
 
@@ -218,7 +250,7 @@ export default function ProviderConfig() {
                         onChange={(e) =>
                           updateForm(provider.id, { apiKey: e.target.value })
                         }
-                        placeholder="Enter API key..."
+                        placeholder={provider.id === 'google' ? "Enter Google AI Studio key..." : "Enter API key..."}
                         className="pr-10"
                       />
                       <button

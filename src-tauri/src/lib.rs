@@ -93,6 +93,9 @@ pub fn run() {
                 if !settings.api_key.is_empty() {
                     init_params["apiKey"] = serde_json::json!(settings.api_key);
                 }
+                if !settings.api_keys.is_empty() {
+                    init_params["apiKeys"] = serde_json::json!(settings.api_keys);
+                }
                 std::thread::sleep(std::time::Duration::from_millis(500));
                 eprintln!("[lib] Sending initialize with agentsDir: {}", agents_dir);
                 if let Err(e) = mgr.send_request("initialize", init_params.clone()) {

@@ -47,7 +47,7 @@ function setupSidecarListener() {
 export const useAppStore = create<AppState>((set, get) => {
   setupSidecarListener();
   return {
-    settings: { apiKey: '', role: 'admin', theme: 'dark', onboardingComplete: false },
+    settings: { apiKey: '', apiKeys: {}, role: 'admin', theme: 'dark', onboardingComplete: false },
     currentView: 'onboarding',
     settingsOpen: false,
     loaded: false,

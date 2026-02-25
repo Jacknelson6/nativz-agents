@@ -44,7 +44,8 @@ export interface AgentMessage {
 }
 
 export interface AgentRuntimeConfig {
-  apiKey?: string;
+  apiKey?: string; // Legacy/Anthropic
+  apiKeys?: Record<string, string>; // Multi-provider
   dataDir?: string;
 }
 
@@ -86,6 +87,7 @@ export class AgentRuntime {
 
   constructor(config?: string | AgentRuntimeConfig) {
     const apiKey = typeof config === "string" ? config : config?.apiKey;
+    const apiKeys = typeof config === "object" ? config?.apiKeys : {};
     this.dataDir = (typeof config === "object" ? config?.dataDir : undefined) ?? path.join(process.cwd(), "data");
 
     // Initialize systems
@@ -96,10 +98,7 @@ export class AgentRuntime {
 
     // v2 systems
     this.providerRegistry = new ProviderRegistry();
-    this.providerRegistry.register(new AnthropicProvider({ apiKey }));
-    this.providerRegistry.register(new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY }));
-    this.providerRegistry.register(new OpenRouterProvider({ apiKey: process.env.OPENROUTER_API_KEY }));
-    this.providerRegistry.register(new OllamaProvider());
+    this.registerProviders(apiKey, apiKeys);
 
     this.llmCostTracker = new LlmCostTracker();
     this.summarizer = new ConversationSummarizer(this.providerRegistry);
@@ -121,6 +120,36 @@ export class AgentRuntime {
     for (const skill of builtinSkills) {
       this.skillRegistry.register(skill);
     }
+  }
+
+  private registerProviders(anthropicKey?: string, apiKeys: Record<string, string> = {}): void {
+    // Clear and re-register
+    this.providerRegistry = new ProviderRegistry();
+    
+    this.providerRegistry.register(new AnthropicProvider({ 
+      apiKey: apiKeys['anthropic'] || anthropicKey || process.env.ANTHROPIC_API_KEY 
+    }));
+    this.providerRegistry.register(new OpenAIProvider({ 
+      apiKey: apiKeys['openai'] || process.env.OPENAI_API_KEY 
+    }));
+import { GeminiProvider } from "../llm/providers/gemini.js";
+
+// ... (in registerProviders)
+    this.providerRegistry.register(new OpenRouterProvider({ 
+      apiKey: apiKeys['openrouter'] || process.env.OPENROUTER_API_KEY 
+    }));
+    this.providerRegistry.register(new GeminiProvider({ 
+      apiKey: apiKeys['google'] || process.env.GOOGLE_API_KEY 
+    }));
+    this.providerRegistry.register(new OllamaProvider());
+  }
+
+  public setApiKeys(apiKeys: Record<string, string>): void {
+    this.registerProviders(undefined, apiKeys);
+    // Re-initialize summarizer with new registry if needed
+    this.summarizer = new ConversationSummarizer(this.providerRegistry);
+    // Update smart router
+    this.smartRouter = new SmartRouter(this.providerRegistry, this.llmCostTracker);
   }
 
   getManifest(): AgentManifest | null {
@@ -213,6 +242,9 @@ export class AgentRuntime {
     this.conversationHistory = [];
     this.turnIndex = 0;
 
+    // Immediately persist empty conversation so it shows up in "Recent"
+    this.persistConversation();
+
     // Initialize working memory for this conversation
     this.workingMemory = new WorkingMemory(this.manifest.id, conv.id, {
       dbPath: path.join(this.dataDir, "working_memory.db"),
@@ -246,6 +278,12 @@ export class AgentRuntime {
     // Auto-start conversation if none active
     if (!this.conversationId) {
       this.startConversation();
+    }
+
+    // Load actual history from store if we just started/resumed
+    // This ensures new chats are persisted correctly and history is consistent
+    if (this.conversationHistory.length === 0 && this.conversationId) {
+       // already handled in startConversation for resume
     }
 
     // Summarize if conversation is long

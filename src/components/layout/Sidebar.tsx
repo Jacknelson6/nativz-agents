@@ -19,6 +19,8 @@ import {
   Store,
   Settings,
   Search,
+  Brain,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -318,8 +320,20 @@ export default function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => setView("analytics")} tooltip="Notifications">
+              <Bell size={18} />
+              <span>Notifications</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => setView("analytics")} tooltip="Memory Inspector">
+              <Brain size={18} />
+              <span>Memory Inspector</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton onClick={toggleSettings} tooltip="Settings">
-              <Settings size={16} />
+              <Settings size={18} />
               <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

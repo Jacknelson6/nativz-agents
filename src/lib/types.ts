@@ -23,7 +23,8 @@ export interface ToolCall {
 }
 
 export interface AppSettings {
-  apiKey: string;
+  apiKey: string; // Legacy/Anthropic
+  apiKeys?: Record<string, string>; // Multi-provider
   role: 'admin' | 'editor' | 'paid-media' | 'account-manager' | 'developer';
   theme: 'dark' | 'light';
   onboardingComplete: boolean;

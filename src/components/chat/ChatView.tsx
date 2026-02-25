@@ -74,7 +74,7 @@ export default function ChatView() {
     isStreaming && lastMsg?.role === "assistant" && lastMsg.content === "";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full">
       {messages.length > 0 && (
         <div className="flex items-center justify-between px-6 py-2 border-b border-border/30">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export default function ChatView() {
         {messages.length === 0 ? (
           <EmptyState onSelectPrompt={handleSend} />
         ) : (
-          <div className="max-w-3xl mx-auto px-6 py-6">
+          <div className="w-full px-6 py-6">
             <div className="space-y-3">
               {messages.map((msg, i) => {
                 if (
@@ -160,7 +160,7 @@ export default function ChatView() {
           </div>
         )}
       </div>
-      <InputBar onSend={handleSend} disabled={isStreaming} agentId={selectedAgent?.id} />
+      <InputBar onSend={handleSend} disabled={isStreaming} agentId={selectedAgent?.id} className="w-full" />
     </div>
   );
 }

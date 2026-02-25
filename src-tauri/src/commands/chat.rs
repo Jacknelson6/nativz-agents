@@ -16,13 +16,20 @@ pub async fn send_message(
     agent_id: String,
     message: String,
     sidecar: tauri::State<'_, Mutex<SidecarManager>>,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
     eprintln!("[chat] send_message called: agent={}, msg={}", agent_id, &message[..message.len().min(50)]);
+    
+    // Ensure sidecar has current API keys
+    let settings = crate::commands::settings::get_settings(app);
     let rx = {
-        let mut mgr = sidecar.lock().map_err(|e| {
-            eprintln!("[chat] Failed to lock sidecar: {}", e);
-            e.to_string()
-        })?;
+        let mut mgr = sidecar.lock().map_err(|e| e.to_string())?;
+        
+        // Push keys if they exist, to ensure runtime has them
+        if !settings.api_keys.is_empty() {
+             let _ = mgr.send_request("set_api_keys", json!({ "apiKeys": settings.api_keys }));
+        }
+
         mgr.send_request("send_message", json!({
             "agentId": agent_id,
             "message": message,
